@@ -53,8 +53,10 @@ export default function ChatDetail({
   const [tagSearch, setTagSearch] = useState("");
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [tagHighlight, setTagHighlight] = useState(-1);
+  const [tocWidth, setTocWidth] = useState(200);
   const contentRef = useRef<HTMLDivElement>(null);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
+  const tocDragging = useRef(false);
 
   useEffect(() => {
     setEditingTitle(false);
@@ -224,17 +226,41 @@ export default function ChatDetail({
 
         {/* Content area: markdown + optional TOC sidebar */}
         <div className="detail-content-area">
-          <div ref={contentRef} className="md-content detail-content-main" dangerouslySetInnerHTML={{ __html: renderedContent }} />
           {headings.length > 0 && (
-            <aside className="detail-toc">
-              <div className="field-label">Contents</div>
-              {headings.map((h, i) => (
-                <button key={i} className="toc-item" onClick={() => scrollToHeading(h.id)} style={{ paddingLeft: (h.level - 1) * 14 }}>
-                  {h.text}
-                </button>
-              ))}
-            </aside>
+            <>
+              <aside className="detail-toc" style={{ "--toc-width": `${tocWidth}px` } as React.CSSProperties}>
+                <div className="field-label">Contents</div>
+                {headings.map((h, i) => (
+                  <button key={i} className="toc-item" onClick={() => scrollToHeading(h.id)} style={{ paddingLeft: (h.level - 1) * 14 }}>
+                    {h.text}
+                  </button>
+                ))}
+              </aside>
+              <div className="detail-toc-handle" onMouseDown={(e) => {
+                e.preventDefault();
+                tocDragging.current = true;
+                const startX = e.clientX;
+                const startWidth = tocWidth;
+                document.body.style.cursor = "col-resize";
+                document.body.style.userSelect = "none";
+                const onMove = (ev: MouseEvent) => {
+                  if (!tocDragging.current) return;
+                  const delta = startX - ev.clientX;
+                  setTocWidth(Math.max(140, Math.min(400, startWidth + delta)));
+                };
+                const onUp = () => {
+                  tocDragging.current = false;
+                  document.body.style.cursor = "";
+                  document.body.style.userSelect = "";
+                  document.removeEventListener("mousemove", onMove);
+                  document.removeEventListener("mouseup", onUp);
+                };
+                document.addEventListener("mousemove", onMove);
+                document.addEventListener("mouseup", onUp);
+              }} />
+            </>
           )}
+          <div ref={contentRef} className="md-content detail-content-main" dangerouslySetInnerHTML={{ __html: renderedContent }} />
         </div>
       </div>
     </div>

@@ -570,7 +570,11 @@ html, body, #root {
 
 .detail-toc {
   padding: 16px 20px;
-  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.detail-toc-handle {
+  display: none;
 }
 
 @container detail-panel (min-width: 600px) {
@@ -578,15 +582,35 @@ html, body, #root {
     flex-direction: row;
   }
 
+  .detail-content-main {
+    order: 0;
+  }
+
   .detail-toc {
-    width: 200px;
-    min-width: 200px;
-    border-top: none;
+    order: 2;
+    width: var(--toc-width, 200px);
+    min-width: var(--toc-width, 200px);
+    border-bottom: none;
     border-left: 1px solid var(--border-subtle);
     position: sticky;
     top: 0;
-    max-height: 100%;
+    max-height: 100vh;
     overflow-y: auto;
+  }
+
+  .detail-toc-handle {
+    display: block;
+    order: 1;
+    width: 3px;
+    min-width: 3px;
+    cursor: col-resize;
+    background: var(--border-subtle);
+    transition: background 0.15s;
+    align-self: stretch;
+  }
+
+  .detail-toc-handle:hover {
+    background: #2dd4bf;
   }
 }
 
