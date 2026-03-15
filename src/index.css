@@ -1076,6 +1076,51 @@ html, body, #root {
 
 .tag-tree-chevron.expanded { transform: rotate(90deg); }
 
+/* ---- CHAT SEARCH BAR ---- */
+.chat-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.chat-search-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+}
+
+.chat-search-bar input::placeholder {
+  color: var(--text-faint);
+}
+
+.chat-search-count {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Search highlights */
+mark.search-highlight {
+  background: var(--accent-subtle);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+mark.search-highlight.active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
 /* ---- SETTINGS MODAL ---- */
 .settings-overlay {
   position: fixed;

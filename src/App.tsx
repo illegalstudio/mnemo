@@ -65,6 +65,19 @@ export default function App() {
   const handleResizeStart = useCallback(() => setIsResizing(true), []);
   const handleResizeEnd = useCallback(() => setIsResizing(false), []);
 
+  // Cmd+Shift+F to focus global search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "f") {
+        e.preventDefault();
+        const searchInput = document.querySelector(".sidebar-search input") as HTMLInputElement;
+        searchInput?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   // Paste from clipboard (Cmd+V) — handles both bookmarklet HTML and plain markdown
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {

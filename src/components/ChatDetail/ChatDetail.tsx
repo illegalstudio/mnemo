@@ -67,6 +67,10 @@ export default function ChatDetail({
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [tagHighlight, setTagHighlight] = useState(-1);
   const [tocWidth, setTocWidth] = useState(200);
+  const [showChatSearch, setShowChatSearch] = useState(false);
+  const [chatSearchTerm, setChatSearchTerm] = useState("");
+  const [chatSearchIndex, setChatSearchIndex] = useState(0);
+  const chatSearchRef = useRef<HTMLInputElement>(null);
   const [tocResizing, setTocResizing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
@@ -78,7 +82,85 @@ export default function ChatDetail({
     setSummaryValue(chat.summary || "");
     setTagSearch("");
     setShowTagDropdown(false);
+    setShowChatSearch(false);
+    setChatSearchTerm("");
   }, [chat.id]);
+
+  // Cmd+F to open in-chat search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "f" && !e.shiftKey) {
+        e.preventDefault();
+        setShowChatSearch(true);
+        setTimeout(() => chatSearchRef.current?.focus(), 50);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Highlight search matches in content
+  useEffect(() => {
+    if (!contentRef.current) return;
+    // Clear previous marks
+    contentRef.current.querySelectorAll("mark.search-highlight").forEach((m) => {
+      const parent = m.parentNode;
+      if (parent) {
+        parent.replaceChild(document.createTextNode(m.textContent || ""), m);
+        parent.normalize();
+      }
+    });
+    if (!chatSearchTerm || chatSearchTerm.length < 2) return;
+
+    const walker = document.createTreeWalker(contentRef.current, NodeFilter.SHOW_TEXT);
+    const matches: { node: Text; index: number }[] = [];
+    const term = chatSearchTerm.toLowerCase();
+
+    let node: Text | null;
+    while ((node = walker.nextNode() as Text | null)) {
+      const text = node.textContent || "";
+      let idx = text.toLowerCase().indexOf(term);
+      while (idx !== -1) {
+        matches.push({ node, index: idx });
+        idx = text.toLowerCase().indexOf(term, idx + 1);
+      }
+    }
+
+    // Wrap matches with <mark> (process in reverse to keep indices valid)
+    const markElements: HTMLElement[] = [];
+    for (let i = matches.length - 1; i >= 0; i--) {
+      const { node: textNode, index } = matches[i];
+      const range = document.createRange();
+      range.setStart(textNode, index);
+      range.setEnd(textNode, index + chatSearchTerm.length);
+      const mark = document.createElement("mark");
+      mark.className = "search-highlight";
+      range.surroundContents(mark);
+      markElements.unshift(mark);
+    }
+
+    // Scroll to current match
+    if (markElements.length > 0) {
+      const clampedIndex = Math.max(0, Math.min(chatSearchIndex, markElements.length - 1));
+      markElements.forEach((m, i) => {
+        m.classList.toggle("active", i === clampedIndex);
+      });
+      markElements[clampedIndex]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [chatSearchTerm, chatSearchIndex]);
+
+  const chatSearchMatchCount = useMemo(() => {
+    if (!chatSearchTerm || chatSearchTerm.length < 2) return 0;
+    const text = chat.content_md.toLowerCase();
+    const term = chatSearchTerm.toLowerCase();
+    let count = 0;
+    let idx = text.indexOf(term);
+    while (idx !== -1) {
+      count++;
+      idx = text.indexOf(term, idx + 1);
+    }
+    return count;
+  }, [chat.content_md, chatSearchTerm]);
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
@@ -151,6 +233,43 @@ export default function ChatDetail({
           </svg>
         </button>
       </div>
+
+      {showChatSearch && (
+        <div className="chat-search-bar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, color: "var(--text-faint)" }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <input
+            ref={chatSearchRef}
+            value={chatSearchTerm}
+            onChange={(e) => { setChatSearchTerm(e.target.value); setChatSearchIndex(0); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                if (e.shiftKey) {
+                  setChatSearchIndex((i) => Math.max(0, i - 1));
+                } else {
+                  setChatSearchIndex((i) => Math.min(chatSearchMatchCount - 1, i + 1));
+                }
+              } else if (e.key === "Escape") {
+                setShowChatSearch(false);
+                setChatSearchTerm("");
+              }
+            }}
+            placeholder="Search in chat..."
+            autoComplete="off" autoCorrect="off" spellCheck={false}
+          />
+          {chatSearchTerm.length >= 2 && (
+            <span className="chat-search-count">
+              {chatSearchMatchCount > 0 ? `${chatSearchIndex + 1}/${chatSearchMatchCount}` : "0"}
+            </span>
+          )}
+          <button className="close-btn" onClick={() => { setShowChatSearch(false); setChatSearchTerm(""); }} style={{ width: 20, height: 20 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       <div className="detail-scroll">
         {/* Metadata */}
