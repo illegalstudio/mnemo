@@ -251,7 +251,16 @@ export default function ChatDetail({
                 h1: ({ children, ...props }) => <h1 id={slugify(String(children))} {...props}>{children}</h1>,
                 h2: ({ children, ...props }) => <h2 id={slugify(String(children))} {...props}>{children}</h2>,
                 h3: ({ children, ...props }) => <h3 id={slugify(String(children))} {...props}>{children}</h3>,
-                a: ({ children, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer">{children}</a>,
+                a: ({ children, href, ...props }) => {
+                  if (href?.startsWith("#")) {
+                    return <a {...props} href={href} onClick={(e) => {
+                      e.preventDefault();
+                      const id = href.slice(1);
+                      contentRef.current?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}>{children}</a>;
+                  }
+                  return <a {...props} href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+                },
               }}
             >
               {chat.content_md}
