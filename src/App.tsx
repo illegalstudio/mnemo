@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useDatabase } from "./hooks/useDatabase";
 import { useTheme } from "./hooks/useTheme";
 import { Sidebar } from "./components/Sidebar/Sidebar";
@@ -41,7 +41,7 @@ function ResizeHandle({ onResize }: { onResize: (delta: number) => void }) {
 
 export default function App() {
   const {
-    chats, tags, selectedChat, selectedChatTags, selectedChatAttachments,
+    chats, recentChats, tags, selectedChat, selectedChatTags, selectedChatAttachments,
     searchQuery, selectedTagId, selectedSource, loading, generatingMetadata,
     setSelectedChat, importFile, updateChat, deleteChat,
     createTag, updateTag, deleteTag,
@@ -54,7 +54,6 @@ export default function App() {
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [chatListWidth, setChatListWidth] = useState(260);
 
-  const recentChats = useMemo(() => chats.slice(0, 5), [chats]);
 
   const handleImport = async (files: { name: string; content: string }[]) => {
     for (const file of files) {

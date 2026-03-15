@@ -13,6 +13,7 @@ export function useDatabase() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<Source | null>(null);
+  const [recentChats, setRecentChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingMetadata, setGeneratingMetadata] = useState<Set<string>>(new Set());
   const initialized = useRef(false);
@@ -41,6 +42,8 @@ export function useDatabase() {
       result = await db.getAllChats();
     }
     setChats(result);
+    const recent = await db.getRecentChats(5);
+    setRecentChats(recent);
   }, [searchQuery, selectedTagId, selectedSource]);
 
   const refreshTags = useCallback(async () => {
@@ -208,6 +211,7 @@ export function useDatabase() {
 
   return {
     chats,
+    recentChats,
     tags,
     selectedChat,
     selectedChatTags,
