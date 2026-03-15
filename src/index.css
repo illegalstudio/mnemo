@@ -131,7 +131,7 @@ html, body, #root {
   background: var(--border);
   position: relative;
   z-index: 10;
-  transition: background 0.15s, width 0.1s;
+  transition: background 0.15s;
 }
 
 .resize-handle::before {
@@ -144,7 +144,6 @@ html, body, #root {
 }
 
 .resize-handle:hover {
-  width: 3px;
   background: var(--accent);
 }
 
