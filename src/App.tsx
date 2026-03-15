@@ -42,11 +42,11 @@ function ResizeHandle({ onResize }: { onResize: (delta: number) => void }) {
 export default function App() {
   const {
     chats, recentChats, tags, selectedChat, selectedChatTags, selectedChatAttachments,
-    searchQuery, selectedTagId, selectedSource, loading, generatingMetadata,
+    searchQuery, selectedTagIds, selectedSource, loading, generatingMetadata,
     setSelectedChat, importFile, updateChat, deleteChat,
     createTag, updateTag, deleteTag,
     addTagToChat, removeTagFromChat, addAttachment, removeAttachment,
-    selectTag, selectSource, search,
+    toggleTag, selectSource, search,
   } = useDatabase();
 
   const { mode: themeMode, setThemeMode } = useTheme();
@@ -82,9 +82,9 @@ export default function App() {
       <div className="app-layout">
         <div className="sidebar" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
           <Sidebar
-            tags={tags} selectedTagId={selectedTagId} selectedSource={selectedSource}
+            tags={tags} selectedTagIds={selectedTagIds} selectedSource={selectedSource}
             searchQuery={searchQuery} recentChats={recentChats}
-            onSearch={search} onSelectTag={selectTag} onSelectSource={selectSource}
+            onSearch={search} onToggleTag={toggleTag} onSelectSource={selectSource}
             onSelectChat={setSelectedChat} onCreateTag={createTag}
             onUpdateTag={updateTag} onDeleteTag={deleteTag}
             onOpenSettings={() => setShowSettings(true)}

@@ -11,14 +11,13 @@ export function useDatabase() {
   const [selectedChatTags, setSelectedChatTags] = useState<Tag[]>([]);
   const [selectedChatAttachments, setSelectedChatAttachments] = useState<Attachment[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
   const [selectedSource, setSelectedSource] = useState<Source | null>(null);
   const [recentChats, setRecentChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingMetadata, setGeneratingMetadata] = useState<Set<string>>(new Set());
   const initialized = useRef(false);
 
-  // Initialize DB and load data
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
@@ -31,33 +30,57 @@ export function useDatabase() {
   }, []);
 
   const refreshChats = useCallback(async () => {
+    // Start with all chats or search results
     let result: Chat[];
     if (searchQuery) {
       result = await db.searchChats(searchQuery);
-    } else if (selectedTagId) {
-      result = await db.getChatsByTag(selectedTagId);
-    } else if (selectedSource) {
-      result = await db.getChatsBySource(selectedSource);
     } else {
       result = await db.getAllChats();
     }
+
+    // Filter by source
+    if (selectedSource) {
+      result = result.filter(c => c.source === selectedSource);
+    }
+
+    // Filter by tags (AND: chat must have ALL selected tags)
+    if (selectedTagIds.size > 0) {
+      const filtered: Chat[] = [];
+      for (const chat of result) {
+        const chatTags = await db.getTagsForChat(chat.id);
+        const chatTagIds = new Set(chatTags.map(t => t.id));
+        // Also include chats tagged with child tags (check via getChatsByTag)
+        let hasAll = true;
+        for (const tagId of selectedTagIds) {
+          if (!chatTagIds.has(tagId)) {
+            // Check if chat has any descendant of this tag
+            const chatsForTag = await db.getChatsByTag(tagId);
+            if (!chatsForTag.some(c => c.id === chat.id)) {
+              hasAll = false;
+              break;
+            }
+          }
+        }
+        if (hasAll) filtered.push(chat);
+      }
+      result = filtered;
+    }
+
     setChats(result);
     const recent = await db.getRecentChats(5);
     setRecentChats(recent);
-  }, [searchQuery, selectedTagId, selectedSource]);
+  }, [searchQuery, selectedTagIds, selectedSource]);
 
   const refreshTags = useCallback(async () => {
     const result = await db.getAllTags();
     setTags(result);
   }, []);
 
-  // Refresh chats when filters change
   useEffect(() => {
     if (!initialized.current) return;
     refreshChats();
   }, [refreshChats]);
 
-  // Load selected chat details
   useEffect(() => {
     if (!selectedChat) {
       setSelectedChatTags([]);
@@ -81,7 +104,6 @@ export function useDatabase() {
     await refreshTags();
     setSelectedChat(chat);
 
-    // Async metadata generation
     setGeneratingMetadata(prev => new Set(prev).add(chat.id));
     try {
       const metadata = await generateMetadata(content);
@@ -90,7 +112,6 @@ export function useDatabase() {
           title: metadata.title,
           summary: metadata.summary,
         });
-        // Create and assign suggested tags
         for (const tagName of metadata.tags) {
           const existingTags = await db.getAllTags();
           const slug = tagName.toLowerCase().replace(/\s+/g, '-');
@@ -104,7 +125,6 @@ export function useDatabase() {
         }
         await refreshChats();
         await refreshTags();
-        // Refresh selected chat
         const updated = (await db.getAllChats()).find(c => c.id === chat.id);
         if (updated) setSelectedChat(updated);
       }
@@ -147,9 +167,13 @@ export function useDatabase() {
 
   const deleteTag = useCallback(async (id: string) => {
     await db.deleteTag(id);
-    if (selectedTagId === id) setSelectedTagId(null);
+    setSelectedTagIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     await refreshTags();
-  }, [refreshTags, selectedTagId]);
+  }, [refreshTags]);
 
   const addTagToChat = useCallback(async (chatId: string, tagId: string) => {
     await db.addTagToChat(chatId, tagId);
@@ -191,22 +215,25 @@ export function useDatabase() {
     }
   }, [selectedChat]);
 
-  const selectTag = useCallback((tagId: string | null) => {
-    setSelectedTagId(tagId);
-    setSelectedSource(null);
-    setSearchQuery('');
+  // Toggle a tag in the selection (click to add, click again to remove)
+  const toggleTag = useCallback((tagId: string) => {
+    setSelectedTagIds(prev => {
+      const next = new Set(prev);
+      if (next.has(tagId)) {
+        next.delete(tagId);
+      } else {
+        next.add(tagId);
+      }
+      return next;
+    });
   }, []);
 
   const selectSource = useCallback((source: Source | null) => {
     setSelectedSource(source);
-    setSelectedTagId(null);
-    setSearchQuery('');
   }, []);
 
   const search = useCallback((query: string) => {
     setSearchQuery(query);
-    setSelectedTagId(null);
-    setSelectedSource(null);
   }, []);
 
   return {
@@ -217,7 +244,7 @@ export function useDatabase() {
     selectedChatTags,
     selectedChatAttachments,
     searchQuery,
-    selectedTagId,
+    selectedTagIds,
     selectedSource,
     loading,
     generatingMetadata,
@@ -232,7 +259,7 @@ export function useDatabase() {
     removeTagFromChat,
     addAttachment,
     removeAttachment,
-    selectTag,
+    toggleTag,
     selectSource,
     search,
     refreshChats,

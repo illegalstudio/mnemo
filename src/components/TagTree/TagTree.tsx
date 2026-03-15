@@ -3,8 +3,8 @@ import type { Tag, TagWithCount } from "../../types";
 
 interface TagTreeProps {
   tags: TagWithCount[];
-  selectedTagId: string | null;
-  onSelect: (tagId: string | null) => void;
+  selectedTagIds: Set<string>;
+  onToggle: (tagId: string) => void;
   onCreateTag: (name: string, parentId?: string, color?: string) => void;
   onUpdateTag: (id: string, updates: Partial<Tag>) => void;
   onDeleteTag: (id: string) => void;
@@ -24,7 +24,7 @@ function buildTree(tags: TagWithCount[]): TagWithCount[] {
   return roots;
 }
 
-export function TagTree({ tags, selectedTagId, onSelect, onCreateTag, onUpdateTag, onDeleteTag }: TagTreeProps) {
+export function TagTree({ tags, selectedTagIds, onToggle, onCreateTag, onUpdateTag, onDeleteTag }: TagTreeProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; tagId: string } | null>(null);
 
@@ -69,8 +69,8 @@ export function TagTree({ tags, selectedTagId, onSelect, onCreateTag, onUpdateTa
     return (
       <div key={tag.id}>
         <div
-          className={`tag-tree-node ${selectedTagId === tag.id ? "active" : ""}`}
-          onClick={() => onSelect(tag.id)}
+          className={`tag-tree-node ${selectedTagIds.has(tag.id) ? "active" : ""}`}
+          onClick={() => onToggle(tag.id)}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, tagId: tag.id }); }}
         >
           {hasChildren ? (

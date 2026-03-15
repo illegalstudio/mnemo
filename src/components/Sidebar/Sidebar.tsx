@@ -5,12 +5,12 @@ import { useDebounce } from "../../hooks/useDebounce";
 
 interface SidebarProps {
   tags: TagWithCount[];
-  selectedTagId: string | null;
+  selectedTagIds: Set<string>;
   selectedSource: Source | null;
   searchQuery: string;
   recentChats: Chat[];
   onSearch: (query: string) => void;
-  onSelectTag: (tagId: string | null) => void;
+  onToggleTag: (tagId: string) => void;
   onSelectSource: (source: Source | null) => void;
   onSelectChat: (chat: Chat) => void;
   onCreateTag: (name: string, parentId?: string, color?: string) => void;
@@ -37,8 +37,8 @@ const sourceColors: Record<string, string> = {
 const tagColors = ["#88C0D0", "#81A1C1", "#5E81AC", "#BF616A", "#D08770", "#EBCB8B", "#A3BE8C", "#B48EAD"];
 
 export function Sidebar({
-  tags, selectedTagId, selectedSource, searchQuery, recentChats,
-  onSearch, onSelectTag, onSelectSource, onSelectChat,
+  tags, selectedTagIds, selectedSource, searchQuery, recentChats,
+  onSearch, onToggleTag, onSelectSource, onSelectChat,
   onCreateTag, onUpdateTag, onDeleteTag, onOpenSettings,
 }: SidebarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -94,7 +94,7 @@ export function Sidebar({
             <button onClick={handleCreateTag} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0 }} title="New tag">+</button>
           </div>
           {tags.length > 0 ? (
-            <TagTree tags={tags} selectedTagId={selectedTagId} onSelect={onSelectTag} onCreateTag={onCreateTag} onUpdateTag={onUpdateTag} onDeleteTag={onDeleteTag} />
+            <TagTree tags={tags} selectedTagIds={selectedTagIds} onToggle={onToggleTag} onCreateTag={onCreateTag} onUpdateTag={onUpdateTag} onDeleteTag={onDeleteTag} />
           ) : (
             <div style={{ fontSize: 11, color: "var(--text-faint)", padding: "0 8px", fontStyle: "italic" }}>No tags yet</div>
           )}
