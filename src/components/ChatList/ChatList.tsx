@@ -10,10 +10,11 @@ interface ChatListProps {
   onSelectChat: (chat: Chat) => void;
   onImport: (files: { name: string; content: string }[]) => void;
   onDeleteChat: (id: string) => void;
+  hasDetail?: boolean;
 }
 
 export default function ChatList({
-  chats, selectedChatId, generatingMetadata, onSelectChat, onImport, onDeleteChat: _onDeleteChat,
+  chats, selectedChatId, generatingMetadata, onSelectChat, onImport, onDeleteChat: _onDeleteChat, hasDetail,
 }: ChatListProps) {
   const [sortBy, setSortBy] = useState<"imported_at" | "chat_date" | "title">("imported_at");
   const [isDragging, setIsDragging] = useState(false);
@@ -67,7 +68,7 @@ export default function ChatList({
   };
 
   return (
-    <div className="center-panel">
+    <div className={`center-panel ${hasDetail ? "" : "expanded"}`}>
       <div className="toolbar">
         <div className="toolbar-left">
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>

@@ -44,6 +44,7 @@ export default function App() {
         generatingMetadata={generatingMetadata}
         onSelectChat={setSelectedChat} onImport={handleImport}
         onDeleteChat={deleteChat}
+        hasDetail={!!selectedChat}
       />
       {selectedChat && (
         <ChatDetail
