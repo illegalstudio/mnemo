@@ -995,11 +995,18 @@ html, body, #root {
 }
 
 .md-content .footnotes ol {
-  padding-left: 20px;
+  padding-left: 24px;
+  list-style-type: decimal;
 }
 
 .md-content .footnotes li {
-  margin: 4px 0;
+  margin: 6px 0;
+}
+
+.md-content .footnotes li::marker {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 11px;
 }
 
 /* ---- CONTEXT MENU ---- */
