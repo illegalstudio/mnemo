@@ -54,7 +54,7 @@ export function Sidebar({
   }
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar-inner">
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
