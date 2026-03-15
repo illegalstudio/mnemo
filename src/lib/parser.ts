@@ -63,7 +63,8 @@ export function extractHeadings(content: string): HeadingEntry[] {
 
 export function parseImportFile(
   filename: string,
-  content: string
+  content: string,
+  contentHtml?: string | null,
 ): Omit<Chat, "id"> {
   const { source: metaSource, cleanContent } = parseMnemoMeta(content);
   const source = metaSource || detectSource(cleanContent);
@@ -74,6 +75,7 @@ export function parseImportFile(
     summary: null,
     source,
     content_md: cleanContent,
+    content_html: contentHtml || null,
     imported_at: new Date().toISOString(),
     chat_date: null,
   };

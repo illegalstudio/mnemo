@@ -97,8 +97,8 @@ export function useDatabase() {
     })();
   }, [selectedChat?.id]);
 
-  const importFile = useCallback(async (filename: string, content: string) => {
-    const parsed = parseImportFile(filename, content);
+  const importFile = useCallback(async (filename: string, content: string, contentHtml?: string) => {
+    const parsed = parseImportFile(filename, content, contentHtml);
     const chat = await db.insertChat(parsed);
     await refreshChats();
     await refreshTags();

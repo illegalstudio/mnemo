@@ -19,6 +19,7 @@ export async function initDb(): Promise<Database> {
       summary TEXT,
       source TEXT,
       content_md TEXT,
+      content_html TEXT,
       imported_at TEXT,
       chat_date TEXT
     )
@@ -61,6 +62,13 @@ export async function initDb(): Promise<Database> {
       content_md
     )
   `);
+
+  // Migration: add content_html column if missing
+  try {
+    await instance.execute("ALTER TABLE chats ADD COLUMN content_html TEXT");
+  } catch {
+    // Column already exists
+  }
 
   db = instance;
   return instance;
@@ -109,9 +117,9 @@ export async function insertChat(chat: Omit<Chat, "id">): Promise<Chat> {
   const id = uuidv4();
 
   await d.execute(
-    `INSERT INTO chats (id, title, summary, source, content_md, imported_at, chat_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [id, chat.title, chat.summary, chat.source, chat.content_md, chat.imported_at, chat.chat_date]
+    `INSERT INTO chats (id, title, summary, source, content_md, content_html, imported_at, chat_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, chat.title, chat.summary, chat.source, chat.content_md, chat.content_html, chat.imported_at, chat.chat_date]
   );
 
   await d.execute(

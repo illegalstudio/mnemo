@@ -21,6 +21,7 @@
     "react-markdown": "^10.1.0",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
+    "turndown": "^7.2.2",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
@@ -30,6 +31,7 @@
     "@types/node": "^24.12.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/turndown": "^5.0.6",
     "@types/uuid": "^11.0.0",
     "@vitejs/plugin-react": "^6.0.0",
     "eslint": "^9.39.4",

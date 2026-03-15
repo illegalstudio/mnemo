@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { isMnemoHtmlPaste, convertHtmlToMarkdown } from "./lib/html-parser";
 import { useDatabase } from "./hooks/useDatabase";
 import { useTheme } from "./hooks/useTheme";
 import { Sidebar } from "./components/Sidebar/Sidebar";
@@ -64,15 +65,26 @@ export default function App() {
   const handleResizeStart = useCallback(() => setIsResizing(true), []);
   const handleResizeEnd = useCallback(() => setIsResizing(false), []);
 
-  // Paste markdown from clipboard (Cmd+V)
+  // Paste from clipboard (Cmd+V) — handles both bookmarklet HTML and plain markdown
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
+      // Don't intercept if user is typing in an input/textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+
       const text = e.clipboardData?.getData("text/plain");
-      if (text && text.length > 50 && (text.includes("# ") || text.includes("## "))) {
-        e.preventDefault();
+      if (!text || text.length < 50) return;
+
+      e.preventDefault();
+
+      if (isMnemoHtmlPaste(text)) {
+        // Bookmarklet HTML paste — convert to markdown, save original HTML
+        const { title, content } = convertHtmlToMarkdown(text);
+        importFile(title + ".md", content, text);
+      } else if (text.includes("# ") || text.includes("## ")) {
+        // Plain markdown paste
         const firstLine = text.split("\n")[0].replace(/^#\s+/, "").trim();
-        const filename = (firstLine || "Pasted Chat") + ".md";
-        importFile(filename, text);
+        importFile((firstLine || "Pasted Chat") + ".md", text);
       }
     };
     window.addEventListener("paste", handlePaste);

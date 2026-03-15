@@ -4,6 +4,7 @@ export interface Chat {
   summary: string | null;
   source: "claude" | "perplexity" | "chatgpt" | "other";
   content_md: string;
+  content_html: string | null;
   imported_at: string;
   chat_date: string | null;
 }
