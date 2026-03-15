@@ -33,10 +33,52 @@ function parseMeta(raw: string): { meta: ParsedMeta | null; html: string } {
 }
 
 /**
- * Check if pasted content is from a Mnemo bookmarklet (starts with mnemo comment + HTML)
+ * Check if pasted content is from a Mnemo bookmarklet (starts with mnemo comment)
  */
 export function isMnemoHtmlPaste(text: string): boolean {
-  return MNEMO_META_RE.test(text) && /<div\s+data-role=/.test(text);
+  return MNEMO_META_RE.test(text);
+}
+
+interface Turn {
+  role: "user" | "assistant";
+  el: Element;
+}
+
+/**
+ * Extract conversation turns from raw HTML based on source
+ */
+function extractTurns(doc: Document, source: Source): Turn[] {
+  const turns: Turn[] = [];
+
+  if (source === "chatgpt") {
+    // ChatGPT: [data-message-author-role="user"|"assistant"]
+    doc.querySelectorAll("[data-message-author-role]").forEach((el) => {
+      const role = el.getAttribute("data-message-author-role") === "user" ? "user" : "assistant";
+      turns.push({ role, el });
+    });
+  } else if (source === "claude") {
+    // Claude: user messages in [data-testid="user-message"], responses in .font-claude-response
+    // Collect both and sort by DOM position
+    const items: { role: "user" | "assistant"; el: Element; idx: number }[] = [];
+    const allElements = doc.querySelectorAll("*");
+    allElements.forEach((el, idx) => {
+      if (el.getAttribute("data-testid") === "user-message") {
+        items.push({ role: "user", el, idx });
+      } else if (el.classList.contains("font-claude-response")) {
+        items.push({ role: "assistant", el, idx });
+      }
+    });
+    items.sort((a, b) => a.idx - b.idx);
+    items.forEach((item) => turns.push({ role: item.role, el: item.el }));
+  }
+
+  // Fallback: if no turns found, treat entire content as a single assistant message
+  if (turns.length === 0) {
+    const body = doc.querySelector("body");
+    if (body) turns.push({ role: "assistant", el: body });
+  }
+
+  return turns;
 }
 
 /**
@@ -51,10 +93,8 @@ export function convertHtmlToMarkdown(raw: string): {
   const title = meta?.title || "Imported Chat";
   const source = meta?.source || "other";
 
-  // Parse the HTML to extract conversation turns
   const parser = new DOMParser();
   const doc = parser.parseFromString(`<body>${html}</body>`, "text/html");
-  const turns = doc.querySelectorAll("div[data-role]");
 
   const turndown = new TurndownService({
     headingStyle: "atx",
@@ -62,26 +102,23 @@ export function convertHtmlToMarkdown(raw: string): {
     bulletListMarker: "-",
   });
 
-  // Remove unwanted elements (buttons, icons, etc.)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   turndown.remove(["button", "nav", "style", "script", "svg"] as any);
+
+  const turns = extractTurns(doc, source);
 
   let md = `# ${title}\n\n`;
 
   turns.forEach((turn) => {
-    const role = turn.getAttribute("data-role");
-    const turnMd = turndown.turndown(turn.innerHTML).trim();
-
+    const turnMd = turndown.turndown(turn.el.innerHTML).trim();
     if (!turnMd) return;
 
-    if (role === "user") {
-      // User message becomes H2 — use first line as heading
+    if (turn.role === "user") {
       const firstLine = turnMd.split("\n")[0].replace(/^#+\s*/, "").trim();
       const rest = turnMd.split("\n").slice(1).join("\n").trim();
       md += `## ${firstLine}\n\n`;
       if (rest) md += `${rest}\n\n`;
     } else {
-      // Assistant response is body text
       md += `${turnMd}\n\n---\n\n`;
     }
   });
