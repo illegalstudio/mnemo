@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import { extractHeadings } from "../../lib/parser";
 import type { Chat, Tag, TagWithCount, Attachment } from "../../types";
 
@@ -20,25 +23,6 @@ interface ChatDetailProps {
 
 function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
-
-function renderMarkdown(md: string): string {
-  let html = md
-    .replace(/```(\w*)\n([\s\S]*?)```/g, "<pre><code>$2</code></pre>")
-    .replace(/^### (.+)$/gm, (_, t) => `<h3 id="${slugify(t)}">${t}</h3>`)
-    .replace(/^## (.+)$/gm, (_, t) => `<h2 id="${slugify(t)}">${t}</h2>`)
-    .replace(/^# (.+)$/gm, (_, t) => `<h1 id="${slugify(t)}">${t}</h1>`)
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>")
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-    .replace(/^- (.+)$/gm, "<li>$1</li>")
-    .replace(/(<li>.*<\/li>\n?)+/g, (m) => `<ul>${m}</ul>`)
-    .replace(/^> (.+)$/gm, "<blockquote>$1</blockquote>")
-    .replace(/^---$/gm, "<hr/>")
-    .replace(/\n\n/g, "</p><p>")
-    .replace(/\n/g, "<br/>");
-  return `<p>${html}</p>`;
 }
 
 const sourceLabels: Record<string, string> = { claude: "Claude", perplexity: "Perplexity", chatgpt: "ChatGPT", other: "Other" };
@@ -75,7 +59,6 @@ export default function ChatDetail({
   }, []);
 
   const headings = useMemo(() => extractHeadings(chat.content_md), [chat.content_md]);
-  const renderedContent = useMemo(() => renderMarkdown(chat.content_md), [chat.content_md]);
   const filteredTags = useMemo(() => {
     const ids = new Set(tags.map((t) => t.id));
     return allTags.filter((t) => !ids.has(t.id) && t.name.toLowerCase().includes(tagSearch.toLowerCase()));
@@ -260,7 +243,20 @@ export default function ChatDetail({
               }} />
             </>
           )}
-          <div ref={contentRef} className="md-content detail-content-main" dangerouslySetInnerHTML={{ __html: renderedContent }} />
+          <div ref={contentRef} className="md-content detail-content-main">
+            <Markdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw]}
+              components={{
+                h1: ({ children, ...props }) => <h1 id={slugify(String(children))} {...props}>{children}</h1>,
+                h2: ({ children, ...props }) => <h2 id={slugify(String(children))} {...props}>{children}</h2>,
+                h3: ({ children, ...props }) => <h3 id={slugify(String(children))} {...props}>{children}</h3>,
+                a: ({ children, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer">{children}</a>,
+              }}
+            >
+              {chat.content_md}
+            </Markdown>
+          </div>
         </div>
       </div>
     </div>
