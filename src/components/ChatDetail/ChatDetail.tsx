@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
 import Markdown from "react-markdown";
@@ -6,6 +6,32 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { extractHeadings } from "../../lib/parser";
 import type { Chat, Tag, TagWithCount, Attachment } from "../../types";
+
+const MemoizedMarkdown = memo(function MemoizedMarkdown({ content, contentRef }: { content: string; contentRef: React.RefObject<HTMLDivElement | null> }) {
+  return (
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeRaw]}
+      components={{
+        h1: ({ children, ...props }) => <h1 id={slugify(String(children))} {...props}>{children}</h1>,
+        h2: ({ children, ...props }) => <h2 id={slugify(String(children))} {...props}>{children}</h2>,
+        h3: ({ children, ...props }) => <h3 id={slugify(String(children))} {...props}>{children}</h3>,
+        a: ({ children, href, ...props }) => {
+          if (href?.startsWith("#")) {
+            return <a {...props} href={href} onClick={(e) => {
+              e.preventDefault();
+              const id = href!.slice(1);
+              contentRef.current?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}>{children}</a>;
+          }
+          return <a {...props} href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+        },
+      }}
+    >
+      {content}
+    </Markdown>
+  );
+});
 
 interface ChatDetailProps {
   chat: Chat;
@@ -251,27 +277,7 @@ export default function ChatDetail({
             {isResizing || tocResizing ? (
               <div style={{ padding: 20, color: "var(--text-faint)", fontSize: 13 }}>Resizing...</div>
             ) : (
-            <Markdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeRaw]}
-              components={{
-                h1: ({ children, ...props }) => <h1 id={slugify(String(children))} {...props}>{children}</h1>,
-                h2: ({ children, ...props }) => <h2 id={slugify(String(children))} {...props}>{children}</h2>,
-                h3: ({ children, ...props }) => <h3 id={slugify(String(children))} {...props}>{children}</h3>,
-                a: ({ children, href, ...props }) => {
-                  if (href?.startsWith("#")) {
-                    return <a {...props} href={href} onClick={(e) => {
-                      e.preventDefault();
-                      const id = href.slice(1);
-                      contentRef.current?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }}>{children}</a>;
-                  }
-                  return <a {...props} href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
-                },
-              }}
-            >
-              {chat.content_md}
-            </Markdown>
+              <MemoizedMarkdown content={chat.content_md} contentRef={contentRef} />
             )}
           </div>
         </div>
