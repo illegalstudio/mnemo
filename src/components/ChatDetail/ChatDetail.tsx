@@ -222,20 +222,20 @@ export default function ChatDetail({
           </button>
         </div>
 
-        {/* TOC */}
-        {headings.length > 0 && (
-          <div className="detail-section">
-            <div className="field-label">Contents</div>
-            {headings.map((h, i) => (
-              <button key={i} className="toc-item" onClick={() => scrollToHeading(h.id)} style={{ paddingLeft: (h.level - 1) * 14 }}>
-                {h.text}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Markdown content */}
-        <div ref={contentRef} className="md-content" style={{ padding: 16 }} dangerouslySetInnerHTML={{ __html: renderedContent }} />
+        {/* Content area: markdown + optional TOC sidebar */}
+        <div className="detail-content-area">
+          <div ref={contentRef} className="md-content detail-content-main" dangerouslySetInnerHTML={{ __html: renderedContent }} />
+          {headings.length > 0 && (
+            <aside className="detail-toc">
+              <div className="field-label">Contents</div>
+              {headings.map((h, i) => (
+                <button key={i} className="toc-item" onClick={() => scrollToHeading(h.id)} style={{ paddingLeft: (h.level - 1) * 14 }}>
+                  {h.text}
+                </button>
+              ))}
+            </aside>
+          )}
+        </div>
       </div>
     </div>
   );
