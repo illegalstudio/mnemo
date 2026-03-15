@@ -559,18 +559,24 @@ html, body, #root {
 .detail-content-area {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .detail-content-main {
   padding: 20px;
   flex: 1;
   min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .detail-toc {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border-subtle);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .detail-toc-handle {
