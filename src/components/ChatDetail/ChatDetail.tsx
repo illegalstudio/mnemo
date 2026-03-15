@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback, memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { open as shellOpen } from "@tauri-apps/plugin-shell";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -105,6 +107,29 @@ export default function ChatDetail({
       onAddAttachment(chat.id, filename, filePath, mimeMap[ext] || null);
     }
   }, [chat.id, onAddAttachment]);
+
+  const handleOpenAttachment = useCallback(async (att: Attachment) => {
+    const ext = att.filename.split(".").pop()?.toLowerCase();
+    if (ext === "html" || ext === "htm") {
+      try {
+        const html = await readTextFile(att.file_path);
+        const webview = new WebviewWindow(`attachment-${att.id}`, {
+          title: att.filename,
+          width: 900,
+          height: 700,
+          center: true,
+          url: `data:text/html;charset=utf-8,${encodeURIComponent(html)}`,
+        });
+        webview.once("tauri://error", (e) => {
+          console.error("Failed to open attachment window:", e);
+        });
+      } catch (e) {
+        console.error("Failed to read HTML file:", e);
+      }
+    } else {
+      await shellOpen(att.file_path);
+    }
+  }, []);
 
   const scrollToHeading = useCallback((id: string) => {
     contentRef.current?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -222,7 +247,7 @@ export default function ChatDetail({
             <div key={att.id} className="attachment-row">
               <span className="attachment-name">{att.filename}</span>
               <div className="attachment-actions">
-                <button className="open-btn" onClick={() => shellOpen(att.file_path)}>Open</button>
+                <button className="open-btn" onClick={() => handleOpenAttachment(att)}>Open</button>
                 <button className="remove-btn" onClick={() => onRemoveAttachment(att.id)}>&times;</button>
               </div>
             </div>
