@@ -18,6 +18,7 @@ interface SidebarProps {
   onUpdateTag: (id: string, updates: Partial<Tag>) => void;
   onDeleteTag: (id: string) => void;
   onOpenSettings: () => void;
+  onImportClick: () => void;
 }
 
 const sources: { value: Source | null; label: string }[] = [
@@ -40,7 +41,7 @@ const tagColors = ["#88C0D0", "#81A1C1", "#5E81AC", "#BF616A", "#D08770", "#EBCB
 export function Sidebar({
   tags, selectedTagIds, selectedSource, searchQuery, recentChats,
   onSearch, onToggleTag, onClearTags, onSelectSource, onSelectChat,
-  onCreateTag, onUpdateTag, onDeleteTag, onOpenSettings,
+  onCreateTag, onUpdateTag, onDeleteTag, onOpenSettings, onImportClick,
 }: SidebarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const debouncedSearch = useDebounce(localSearch, 300);
@@ -71,6 +72,15 @@ export function Sidebar({
             <path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z" />
             <circle cx="12" cy="12" r="3" />
           </svg>
+        </button>
+      </div>
+
+      <div style={{ padding: "0 12px 8px" }}>
+        <button className="import-btn" onClick={onImportClick} style={{ width: "100%" }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Import
         </button>
       </div>
 

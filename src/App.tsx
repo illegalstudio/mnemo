@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { readTextFile } from "@tauri-apps/plugin-fs";
 import { isMnemoHtmlPaste, convertHtmlToMarkdown } from "./lib/html-parser";
 import { useDatabase } from "./hooks/useDatabase";
 import { useTheme } from "./hooks/useTheme";
@@ -64,6 +66,17 @@ export default function App() {
 
   const handleResizeStart = useCallback(() => setIsResizing(true), []);
   const handleResizeEnd = useCallback(() => setIsResizing(false), []);
+
+  const handleFileOpen = useCallback(async () => {
+    const selected = await open({ multiple: true, filters: [{ name: "Markdown", extensions: ["md"] }] });
+    if (!selected) return;
+    const paths = Array.isArray(selected) ? selected : [selected];
+    for (const filePath of paths) {
+      const content = await readTextFile(filePath);
+      const name = filePath.split("/").pop() || filePath.split("\\").pop() || "unknown.md";
+      await importFile(name, content);
+    }
+  }, [importFile]);
 
   // Cmd+Shift+F to focus global search
   useEffect(() => {
@@ -137,6 +150,7 @@ export default function App() {
             onSelectChat={setSelectedChat} onCreateTag={createTag}
             onUpdateTag={updateTag} onDeleteTag={deleteTag}
             onOpenSettings={() => setShowSettings(true)}
+            onImportClick={handleFileOpen}
           />
         </div>
         <ResizeHandle onResize={handleSidebarResize} onResizeStart={handleResizeStart} onResizeEnd={handleResizeEnd} />

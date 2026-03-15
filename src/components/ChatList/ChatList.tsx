@@ -1,6 +1,4 @@
 import { useState, useMemo, type DragEvent } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
-import { readTextFile } from "@tauri-apps/plugin-fs";
 import type { Chat } from "../../types";
 
 interface ChatListProps {
@@ -31,19 +29,6 @@ export default function ChatList({
     });
   }, [chats, sortBy]);
 
-  const handleFileOpen = async () => {
-    const selected = await open({ multiple: true, filters: [{ name: "Markdown", extensions: ["md"] }] });
-    if (!selected) return;
-    const paths = Array.isArray(selected) ? selected : [selected];
-    const files: { name: string; content: string }[] = [];
-    for (const filePath of paths) {
-      const content = await readTextFile(filePath);
-      const name = filePath.split("/").pop() || filePath.split("\\").pop() || "unknown.md";
-      files.push({ name, content });
-    }
-    onImport(files);
-  };
-
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = () => setIsDragging(false);
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -69,20 +54,12 @@ export default function ChatList({
   return (
     <div className="chatlist-inner">
       <div className="toolbar">
-        <div className="toolbar-left">
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
-            <option value="imported_at">Date Imported</option>
-            <option value="chat_date">Chat Date</option>
-            <option value="title">Title</option>
-          </select>
-          <span className="chat-count">{chats.length} {chats.length === 1 ? "chat" : "chats"}</span>
-        </div>
-        <button className="import-btn" onClick={handleFileOpen}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Import
-        </button>
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+          <option value="imported_at">Date Imported</option>
+          <option value="chat_date">Chat Date</option>
+          <option value="title">Title</option>
+        </select>
+        <span className="chat-count">{chats.length} {chats.length === 1 ? "chat" : "chats"}</span>
       </div>
 
       <div className="chat-list" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
