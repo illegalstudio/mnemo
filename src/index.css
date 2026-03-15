@@ -553,7 +553,19 @@ html, body, #root {
 
 .close-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 
-.detail-scroll { flex: 1; overflow-y: auto; }
+.detail-scroll {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.detail-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
 
 /* Content area: markdown + TOC side-by-side when wide enough */
 .detail-content-area {
@@ -618,11 +630,6 @@ html, body, #root {
   .detail-toc-handle:hover {
     background: #2dd4bf;
   }
-}
-
-.detail-section {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-subtle);
 }
 
 .detail-title {
