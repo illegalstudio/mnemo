@@ -1,29 +1,42 @@
+function copyBlock(): string {
+  return `
+    function copyMd(md) {
+      navigator.clipboard.writeText(md).then(function() {
+        alert('Copied to clipboard! Paste into Mnemo with Cmd+V.');
+      }).catch(function() {
+        var ta = document.createElement('textarea');
+        ta.value = md;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        alert('Copied to clipboard! Paste into Mnemo with Cmd+V.');
+      });
+    }
+  `;
+}
+
 // ChatGPT bookmarklet
+// User messages become H2 headings, assistant responses are body text
 const chatgptScript = `
 (function(){
   try {
+    ${copyBlock()}
     var msgs = document.querySelectorAll('[data-message-author-role]');
     if (!msgs.length) { alert('No conversation found on this page.'); return; }
     var md = '# ' + (document.title || 'ChatGPT Chat') + '\\n\\n';
     msgs.forEach(function(el) {
       var role = el.getAttribute('data-message-author-role');
-      var label = role === 'user' ? '**User**' : '**ChatGPT**';
       var content = el.innerText.trim();
-      md += '## ' + label + '\\n\\n' + content + '\\n\\n---\\n\\n';
+      if (role === 'user') {
+        md += '## ' + content + '\\n\\n';
+      } else {
+        md += content + '\\n\\n---\\n\\n';
+      }
     });
-    navigator.clipboard.writeText(md).then(function() {
-      alert('Copied to clipboard! Paste into Mnemo with Cmd+V.');
-    }).catch(function() {
-      var ta = document.createElement('textarea');
-      ta.value = md;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      alert('Copied to clipboard! Paste into Mnemo with Cmd+V.');
-    });
+    copyMd(md);
   } catch(e) { alert('Error: ' + e.message); }
 })();
 `;
@@ -32,6 +45,7 @@ const chatgptScript = `
 const claudeScript = `
 (function(){
   try {
+    ${copyBlock()}
     var turns = document.querySelectorAll('[data-testid^="chat-message"]');
     if (!turns.length) turns = document.querySelectorAll('.font-claude-message, .font-user-message');
     if (!turns.length) turns = document.querySelectorAll('article, [role="article"]');
@@ -41,24 +55,16 @@ const claudeScript = `
       var isHuman = el.querySelector('[data-testid="user-message"]')
         || el.classList.contains('font-user-message')
         || (el.getAttribute('data-testid') || '').indexOf('human') >= 0;
-      var label = isHuman ? '**Human**' : '**Claude**';
       var content = el.innerText.trim();
-      if (content) md += '## ' + label + '\\n\\n' + content + '\\n\\n---\\n\\n';
+      if (!content) return;
+      if (isHuman) {
+        md += '## ' + content + '\\n\\n';
+      } else {
+        md += content + '\\n\\n---\\n\\n';
+      }
     });
     if (!md.trim()) { alert('Could not extract conversation content.'); return; }
-    navigator.clipboard.writeText(md).then(function() {
-      alert('Copied to clipboard! Paste into Mnemo with Cmd+V.');
-    }).catch(function() {
-      var ta = document.createElement('textarea');
-      ta.value = md;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      alert('Copied to clipboard! Paste into Mnemo with Cmd+V.');
-    });
+    copyMd(md);
   } catch(e) { alert('Error: ' + e.message); }
 })();
 `;
@@ -67,6 +73,7 @@ const claudeScript = `
 const perplexityScript = `
 (function(){
   try {
+    ${copyBlock()}
     var answers = document.querySelectorAll('[class*="AnswerContent"], [class*="answer"]');
     if (!answers.length) answers = document.querySelectorAll('article, .prose');
     if (!answers.length) { alert('No content found on this page.'); return; }
@@ -74,19 +81,7 @@ const perplexityScript = `
     answers.forEach(function(el) {
       md += el.innerText.trim() + '\\n\\n---\\n\\n';
     });
-    navigator.clipboard.writeText(md).then(function() {
-      alert('Copied to clipboard! Paste into Mnemo with Cmd+V.');
-    }).catch(function() {
-      var ta = document.createElement('textarea');
-      ta.value = md;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      alert('Copied to clipboard! Paste into Mnemo with Cmd+V.');
-    });
+    copyMd(md);
   } catch(e) { alert('Error: ' + e.message); }
 })();
 `;
