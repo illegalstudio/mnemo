@@ -36,16 +36,21 @@ const universalScript = `
       });
     } else if (host.indexOf('claude.ai') >= 0) {
       source = 'claude';
-      var turns = document.querySelectorAll('[data-testid^="chat-message"]');
-      if (!turns.length) turns = document.querySelectorAll('.font-claude-message, .font-user-message');
-      if (!turns.length) turns = document.querySelectorAll('article, [role="article"]');
-      if (!turns.length) { alert('No conversation found.'); return; }
-      turns.forEach(function(el) {
-        var isHuman = el.querySelector('[data-testid="user-message"]')
-          || el.classList.contains('font-user-message')
-          || (el.getAttribute('data-testid') || '').indexOf('human') >= 0;
-        var role = isHuman ? 'user' : 'assistant';
-        html += '<div data-role="' + role + '">' + el.innerHTML + '</div>';
+      var userMsgs = document.querySelectorAll('[data-testid="user-message"]');
+      var assistantMsgs = document.querySelectorAll('.font-claude-response');
+      if (!userMsgs.length && !assistantMsgs.length) { alert('No conversation found.'); return; }
+      var allTurns = [];
+      userMsgs.forEach(function(el) {
+        var rect = el.getBoundingClientRect();
+        allTurns.push({ role: 'user', el: el, top: rect.top + window.scrollY });
+      });
+      assistantMsgs.forEach(function(el) {
+        var rect = el.getBoundingClientRect();
+        allTurns.push({ role: 'assistant', el: el, top: rect.top + window.scrollY });
+      });
+      allTurns.sort(function(a, b) { return a.top - b.top; });
+      allTurns.forEach(function(turn) {
+        html += '<div data-role="' + turn.role + '">' + turn.el.innerHTML + '</div>';
       });
     } else {
       alert('This bookmarklet works on chatgpt.com and claude.ai');
