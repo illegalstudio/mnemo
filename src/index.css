@@ -970,6 +970,16 @@ html, body, #root {
 .md-content sup {
   font-size: 10px;
   line-height: 0;
+  margin-left: 1px;
+}
+
+.md-content sup + sup {
+  margin-left: 2px;
+}
+
+.md-content sup a {
+  padding: 0 2px;
+  text-decoration: none;
 }
 
 .md-content .footnotes {
