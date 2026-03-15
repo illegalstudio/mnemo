@@ -982,6 +982,10 @@ html, body, #root {
   text-decoration: none;
 }
 
+.md-content sup a:hover {
+  text-decoration: underline;
+}
+
 .md-content .footnotes {
   margin-top: 32px;
   padding-top: 16px;
