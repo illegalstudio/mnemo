@@ -111,7 +111,12 @@ export default function App() {
               attachments={selectedChatAttachments}
               onUpdateChat={updateChat} onClose={() => setSelectedChat(null)}
               onAddTag={addTagToChat} onRemoveTag={removeTagFromChat}
-              onCreateTag={async (name: string) => { await createTag(name); }}
+              onCreateTag={async (name: string) => {
+                const tag = await createTag(name);
+                if (tag && selectedChat) {
+                  await addTagToChat(selectedChat.id, tag.id);
+                }
+              }}
               onAddAttachment={addAttachment} onRemoveAttachment={removeAttachment}
             />
           </>

@@ -132,8 +132,9 @@ export function useDatabase() {
   }, [refreshChats, refreshTags, selectedChat?.id]);
 
   const createTag = useCallback(async (name: string, parentId?: string, color?: string) => {
-    await db.insertTag(name, parentId, color);
+    const tag = await db.insertTag(name, parentId, color);
     await refreshTags();
+    return tag;
   }, [refreshTags]);
 
   const updateTag = useCallback(async (id: string, updates: Partial<Tag>) => {
