@@ -79,8 +79,8 @@ export default function App() {
 
       if (isMnemoHtmlPaste(text)) {
         // Bookmarklet HTML paste — convert to markdown, save original HTML
-        const { title, content } = convertHtmlToMarkdown(text);
-        importFile(title + ".md", content, text);
+        const { title, content, source } = convertHtmlToMarkdown(text);
+        importFile(title + ".md", content, text, source);
       } else if (text.includes("# ") || text.includes("## ")) {
         // Plain markdown paste
         const firstLine = text.split("\n")[0].replace(/^#\s+/, "").trim();
