@@ -1156,3 +1156,33 @@ html, body, #root {
   margin-bottom: 4px;
   display: block;
 }
+
+/* Bookmarklets */
+.bookmarklet-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.bookmarklet-copy-btn {
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.bookmarklet-copy-btn:hover {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useDatabase } from "./hooks/useDatabase";
 import { useTheme } from "./hooks/useTheme";
 import { Sidebar } from "./components/Sidebar/Sidebar";
@@ -64,6 +64,20 @@ export default function App() {
   const handleResizeStart = useCallback(() => setIsResizing(true), []);
   const handleResizeEnd = useCallback(() => setIsResizing(false), []);
 
+  // Paste markdown from clipboard (Cmd+V)
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const text = e.clipboardData?.getData("text/plain");
+      if (text && text.length > 50 && (text.includes("# ") || text.includes("## "))) {
+        e.preventDefault();
+        const firstLine = text.split("\n")[0].replace(/^#\s+/, "").trim();
+        const filename = (firstLine || "Pasted Chat") + ".md";
+        importFile(filename, text);
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [importFile]);
 
   const handleImport = async (files: { name: string; content: string }[]) => {
     for (const file of files) {
