@@ -1110,15 +1110,17 @@ html, body, #root {
 
 /* Search highlights */
 mark.search-highlight {
-  background: var(--accent-subtle);
-  color: inherit;
+  background: #fde68a;
+  color: #1a1d23;
   border-radius: 2px;
   padding: 0 1px;
 }
 
 mark.search-highlight.active {
-  background: var(--accent);
-  color: var(--accent-text);
+  background: #f59e0b;
+  color: #1a1d23;
+  outline: 2px solid #f59e0b;
+  outline-offset: 1px;
 }
 
 /* ---- SETTINGS MODAL ---- */
