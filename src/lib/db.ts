@@ -1,4 +1,5 @@
 import Database from "@tauri-apps/plugin-sql";
+import { invoke } from "@tauri-apps/api/core";
 import { v4 as uuidv4 } from "uuid";
 import type {
   Chat,
@@ -54,14 +55,8 @@ export async function initDb(): Promise<Database> {
     )
   `);
 
-  await instance.execute(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS chats_fts USING fts5(
-      id UNINDEXED,
-      title,
-      summary,
-      content_md
-    )
-  `);
+  // Migration: drop old FTS5 table
+  await instance.execute("DROP TABLE IF EXISTS chats_fts");
 
   // Migration: add content_html column if missing
   try {
@@ -72,6 +67,23 @@ export async function initDb(): Promise<Database> {
 
   db = instance;
   return instance;
+}
+
+export async function initSearch(): Promise<void> {
+  const d = await getDb();
+  const allChats = await d.select<{ id: string; title: string; summary: string | null; content_md: string }[]>(
+    "SELECT id, title, summary, content_md FROM chats"
+  );
+  if (allChats.length > 0) {
+    await invoke("reindex_all", {
+      chats: allChats.map((c) => ({
+        id: c.id,
+        title: c.title,
+        summary: c.summary,
+        contentMd: c.content_md,
+      })),
+    });
+  }
 }
 
 export async function getDb(): Promise<Database> {
@@ -85,14 +97,18 @@ export async function getAllChats(): Promise<Chat[]> {
 }
 
 export async function searchChats(query: string): Promise<Chat[]> {
+  const ids = await invoke<string[]>("search_chats", { query });
+  if (ids.length === 0) return [];
   const d = await getDb();
-  return d.select<Chat[]>(
-    `SELECT c.* FROM chats c
-     JOIN chats_fts f ON c.id = f.id
-     WHERE chats_fts MATCH ?
-     ORDER BY rank`,
-    [query]
+  const placeholders = ids.map(() => "?").join(",");
+  const results = await d.select<Chat[]>(
+    `SELECT * FROM chats WHERE id IN (${placeholders})`,
+    ids
   );
+  // Re-order to match Tantivy relevance ranking
+  const idOrder = new Map(ids.map((id, i) => [id, i]));
+  results.sort((a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0));
+  return results;
 }
 
 export async function getChatsByTag(tagId: string): Promise<Chat[]> {
@@ -122,10 +138,12 @@ export async function insertChat(chat: Omit<Chat, "id">): Promise<Chat> {
     [id, chat.title, chat.summary, chat.source, chat.content_md, chat.content_html, chat.imported_at, chat.chat_date]
   );
 
-  await d.execute(
-    `INSERT INTO chats_fts (id, title, summary, content_md)
-     VALUES (?, ?, ?, ?)`,
-    [id, chat.title, chat.summary, chat.content_md]
+  await invoke("index_chat", {
+    id,
+    title: chat.title,
+    summary: chat.summary ?? "",
+    contentMd: chat.content_md,
+  }
   );
 
   return { id, ...chat };
@@ -142,16 +160,16 @@ export async function updateChat(id: string, updates: Partial<Chat>): Promise<vo
 
   await d.execute(`UPDATE chats SET ${setClauses} WHERE id = ?`, [...values, id]);
 
-  const ftsFields = ["title", "summary", "content_md"];
-  if (fields.some((f) => ftsFields.includes(f))) {
+  const searchFields = ["title", "summary", "content_md"];
+  if (fields.some((f) => searchFields.includes(f))) {
     const chat = await d.select<Chat[]>("SELECT * FROM chats WHERE id = ?", [id]);
     if (chat.length > 0) {
-      await d.execute("DELETE FROM chats_fts WHERE id = ?", [id]);
-      await d.execute(
-        `INSERT INTO chats_fts (id, title, summary, content_md)
-         VALUES (?, ?, ?, ?)`,
-        [id, chat[0].title, chat[0].summary, chat[0].content_md]
-      );
+      await invoke("index_chat", {
+        id,
+        title: chat[0].title,
+        summary: chat[0].summary ?? "",
+        contentMd: chat[0].content_md,
+      });
     }
   }
 }
@@ -159,7 +177,7 @@ export async function updateChat(id: string, updates: Partial<Chat>): Promise<vo
 export async function deleteChat(id: string): Promise<void> {
   const d = await getDb();
   await d.execute("DELETE FROM chats WHERE id = ?", [id]);
-  await d.execute("DELETE FROM chats_fts WHERE id = ?", [id]);
+  await invoke("delete_from_index", { id });
   await d.execute("DELETE FROM chat_tags WHERE chat_id = ?", [id]);
 }
 

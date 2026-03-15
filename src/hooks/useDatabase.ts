@@ -23,6 +23,7 @@ export function useDatabase() {
     initialized.current = true;
     (async () => {
       await db.initDb();
+      await db.initSearch();
       await refreshChats();
       await refreshTags();
       setLoading(false);
