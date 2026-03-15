@@ -95,6 +95,13 @@ export function Sidebar({
           onChange={(e) => setLocalSearch(e.target.value)}
           autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
         />
+        {localSearch && (
+          <button onClick={() => setLocalSearch("")} style={{ position: "absolute", right: 20, top: 7, border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} title="Clear search">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="sidebar-scroll">
