@@ -698,8 +698,9 @@ html, body, #root {
   font-family: inherit;
 }
 
-.tag-dropdown button:hover { background: var(--bg-hover); color: var(--text-primary); }
+.tag-dropdown button:hover, .tag-dropdown button.highlighted { background: var(--bg-hover); color: var(--text-primary); }
 .tag-dropdown button.create { color: var(--accent); }
+.tag-dropdown button.create.highlighted { color: var(--accent); }
 
 /* Attachments */
 .attachment-row {

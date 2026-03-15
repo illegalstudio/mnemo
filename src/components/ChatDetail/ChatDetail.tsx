@@ -52,6 +52,7 @@ export default function ChatDetail({
   const [summaryValue, setSummaryValue] = useState(chat.summary || "");
   const [tagSearch, setTagSearch] = useState("");
   const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const [tagHighlight, setTagHighlight] = useState(-1);
   const contentRef = useRef<HTMLDivElement>(null);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -147,18 +148,48 @@ export default function ChatDetail({
           )}
           <div style={{ position: "relative" }} ref={tagDropdownRef}>
             <input className="tag-input" value={tagSearch}
-              onChange={(e) => { setTagSearch(e.target.value); setShowTagDropdown(true); }}
-              onFocus={() => setShowTagDropdown(true)} placeholder="Add tag..." />
+              name="mnemo-tag-search" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} data-form-type="other" data-1p-ignore
+              onChange={(e) => { setTagSearch(e.target.value); setShowTagDropdown(true); setTagHighlight(-1); }}
+              onFocus={() => { setShowTagDropdown(true); setTagHighlight(-1); }}
+              placeholder="Add tag..."
+              onKeyDown={(e) => {
+                if (!showTagDropdown || !tagSearch.trim()) return;
+                const totalItems = filteredTags.length + (filteredTags.length === 0 ? 1 : 0);
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setTagHighlight((prev) => (prev + 1) % totalItems);
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setTagHighlight((prev) => (prev - 1 + totalItems) % totalItems);
+                } else if (e.key === "Enter") {
+                  e.preventDefault();
+                  const idx = tagHighlight >= 0 ? tagHighlight : 0;
+                  if (filteredTags.length > 0 && idx < filteredTags.length) {
+                    onAddTag(chat.id, filteredTags[idx].id);
+                  } else {
+                    onCreateTag(tagSearch.trim());
+                  }
+                  setTagSearch(""); setShowTagDropdown(false); setTagHighlight(-1);
+                } else if (e.key === "Escape") {
+                  setShowTagDropdown(false); setTagHighlight(-1);
+                }
+              }} />
             {showTagDropdown && tagSearch && (
               <div className="tag-dropdown">
-                {filteredTags.map((tag) => (
-                  <button key={tag.id} onClick={() => { onAddTag(chat.id, tag.id); setTagSearch(""); setShowTagDropdown(false); }}>
+                {filteredTags.map((tag, i) => (
+                  <button key={tag.id}
+                    className={tagHighlight === i ? "highlighted" : ""}
+                    onClick={() => { onAddTag(chat.id, tag.id); setTagSearch(""); setShowTagDropdown(false); setTagHighlight(-1); }}
+                    onMouseEnter={() => setTagHighlight(i)}>
                     <span className="dot" style={{ backgroundColor: tag.color || "#88C0D0", width: 6, height: 6, borderRadius: "50%" }} />
                     {tag.name}
                   </button>
                 ))}
                 {filteredTags.length === 0 && (
-                  <button className="create" onClick={() => { onCreateTag(tagSearch); setTagSearch(""); setShowTagDropdown(false); }}>
+                  <button
+                    className={`create ${tagHighlight === 0 ? "highlighted" : ""}`}
+                    onClick={() => { onCreateTag(tagSearch); setTagSearch(""); setShowTagDropdown(false); setTagHighlight(-1); }}
+                    onMouseEnter={() => setTagHighlight(0)}>
                     Create "{tagSearch}"
                   </button>
                 )}
