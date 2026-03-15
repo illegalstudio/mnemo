@@ -974,11 +974,11 @@ html, body, #root {
 }
 
 .md-content sup + sup {
-  margin-left: 2px;
+  margin-left: 1px;
 }
 
 .md-content sup a {
-  padding: 0 2px;
+  padding: 0 1px;
   text-decoration: none;
 }
 
