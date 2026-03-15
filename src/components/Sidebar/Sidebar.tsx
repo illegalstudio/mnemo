@@ -11,6 +11,7 @@ interface SidebarProps {
   recentChats: Chat[];
   onSearch: (query: string) => void;
   onToggleTag: (tagId: string) => void;
+  onClearTags: () => void;
   onSelectSource: (source: Source | null) => void;
   onSelectChat: (chat: Chat) => void;
   onCreateTag: (name: string, parentId?: string, color?: string) => void;
@@ -38,7 +39,7 @@ const tagColors = ["#88C0D0", "#81A1C1", "#5E81AC", "#BF616A", "#D08770", "#EBCB
 
 export function Sidebar({
   tags, selectedTagIds, selectedSource, searchQuery, recentChats,
-  onSearch, onToggleTag, onSelectSource, onSelectChat,
+  onSearch, onToggleTag, onClearTags, onSelectSource, onSelectChat,
   onCreateTag, onUpdateTag, onDeleteTag, onOpenSettings,
 }: SidebarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -97,6 +98,9 @@ export function Sidebar({
             <TagTree tags={tags} selectedTagIds={selectedTagIds} onToggle={onToggleTag} onCreateTag={onCreateTag} onUpdateTag={onUpdateTag} onDeleteTag={onDeleteTag} />
           ) : (
             <div style={{ fontSize: 11, color: "var(--text-faint)", padding: "0 8px", fontStyle: "italic" }}>No tags yet</div>
+          )}
+          {selectedTagIds.size > 0 && (
+            <button onClick={onClearTags} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 11, padding: "4px 8px", marginTop: 4 }}>Clear selection</button>
           )}
         </div>
 

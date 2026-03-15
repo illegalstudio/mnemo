@@ -228,6 +228,10 @@ export function useDatabase() {
     });
   }, []);
 
+  const clearTags = useCallback(() => {
+    setSelectedTagIds(new Set());
+  }, []);
+
   const selectSource = useCallback((source: Source | null) => {
     setSelectedSource(source);
   }, []);
@@ -260,6 +264,7 @@ export function useDatabase() {
     addAttachment,
     removeAttachment,
     toggleTag,
+    clearTags,
     selectSource,
     search,
     refreshChats,
