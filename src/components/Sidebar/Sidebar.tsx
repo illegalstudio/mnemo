@@ -84,24 +84,26 @@ export function Sidebar({
         </button>
       </div>
 
-      <div className="sidebar-search" style={{ position: "relative" }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: "absolute", left: 22, top: 9, color: "var(--text-faint)" }}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-        </svg>
-        <input
-          type="text"
-          placeholder="Search..."
-          value={localSearch}
-          onChange={(e) => setLocalSearch(e.target.value)}
-          autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
-        />
-        {localSearch && (
-          <button onClick={() => setLocalSearch("")} style={{ position: "absolute", right: 20, top: 5, border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} title="Clear search">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
+      <div className="sidebar-search">
+        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: "absolute", left: 10, color: "var(--text-faint)", pointerEvents: "none" }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Search..."
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+          />
+          {localSearch && (
+            <button onClick={() => setLocalSearch("")} style={{ position: "absolute", right: 8, border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", padding: 2, display: "flex", alignItems: "center" }} title="Clear search">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="sidebar-scroll">
