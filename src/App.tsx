@@ -1,8 +1,10 @@
 import { useMemo, useState, useCallback, useRef } from "react";
 import { useDatabase } from "./hooks/useDatabase";
+import { useTheme } from "./hooks/useTheme";
 import { Sidebar } from "./components/Sidebar/Sidebar";
 import ChatList from "./components/ChatList/ChatList";
 import ChatDetail from "./components/ChatDetail/ChatDetail";
+import Settings from "./components/Settings/Settings";
 
 function ResizeHandle({ onResize }: { onResize: (delta: number) => void }) {
   const dragging = useRef(false);
@@ -47,6 +49,8 @@ export default function App() {
     selectTag, selectSource, search,
   } = useDatabase();
 
+  const { mode: themeMode, setThemeMode } = useTheme();
+  const [showSettings, setShowSettings] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [chatListWidth, setChatListWidth] = useState(260);
 
@@ -75,41 +79,51 @@ export default function App() {
   }
 
   return (
-    <div className="app-layout">
-      <div className="sidebar" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
-        <Sidebar
-          tags={tags} selectedTagId={selectedTagId} selectedSource={selectedSource}
-          searchQuery={searchQuery} recentChats={recentChats}
-          onSearch={search} onSelectTag={selectTag} onSelectSource={selectSource}
-          onSelectChat={setSelectedChat} onCreateTag={createTag}
-          onUpdateTag={updateTag} onDeleteTag={deleteTag}
-        />
-      </div>
-      <ResizeHandle onResize={handleSidebarResize} />
-      <div
-        className={`center-panel ${selectedChat ? "" : "expanded"}`}
-        style={selectedChat ? { width: chatListWidth, minWidth: chatListWidth } : undefined}
-      >
-        <ChatList
-          chats={chats} selectedChatId={selectedChat?.id ?? null}
-          generatingMetadata={generatingMetadata}
-          onSelectChat={setSelectedChat} onImport={handleImport}
-          onDeleteChat={deleteChat}
-        />
-      </div>
-      {selectedChat && (
-        <>
-          <ResizeHandle onResize={handleChatListResize} />
-          <ChatDetail
-            chat={selectedChat} tags={selectedChatTags} allTags={tags}
-            attachments={selectedChatAttachments}
-            onUpdateChat={updateChat} onClose={() => setSelectedChat(null)}
-            onAddTag={addTagToChat} onRemoveTag={removeTagFromChat}
-            onCreateTag={async (name: string) => { await createTag(name); }}
-            onAddAttachment={addAttachment} onRemoveAttachment={removeAttachment}
+    <>
+      <div className="app-layout">
+        <div className="sidebar" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
+          <Sidebar
+            tags={tags} selectedTagId={selectedTagId} selectedSource={selectedSource}
+            searchQuery={searchQuery} recentChats={recentChats}
+            onSearch={search} onSelectTag={selectTag} onSelectSource={selectSource}
+            onSelectChat={setSelectedChat} onCreateTag={createTag}
+            onUpdateTag={updateTag} onDeleteTag={deleteTag}
+            onOpenSettings={() => setShowSettings(true)}
           />
-        </>
+        </div>
+        <ResizeHandle onResize={handleSidebarResize} />
+        <div
+          className={`center-panel ${selectedChat ? "" : "expanded"}`}
+          style={selectedChat ? { width: chatListWidth, minWidth: chatListWidth } : undefined}
+        >
+          <ChatList
+            chats={chats} selectedChatId={selectedChat?.id ?? null}
+            generatingMetadata={generatingMetadata}
+            onSelectChat={setSelectedChat} onImport={handleImport}
+            onDeleteChat={deleteChat}
+          />
+        </div>
+        {selectedChat && (
+          <>
+            <ResizeHandle onResize={handleChatListResize} />
+            <ChatDetail
+              chat={selectedChat} tags={selectedChatTags} allTags={tags}
+              attachments={selectedChatAttachments}
+              onUpdateChat={updateChat} onClose={() => setSelectedChat(null)}
+              onAddTag={addTagToChat} onRemoveTag={removeTagFromChat}
+              onCreateTag={async (name: string) => { await createTag(name); }}
+              onAddAttachment={addAttachment} onRemoveAttachment={removeAttachment}
+            />
+          </>
+        )}
+      </div>
+      {showSettings && (
+        <Settings
+          themeMode={themeMode}
+          onSetTheme={setThemeMode}
+          onClose={() => setShowSettings(false)}
+        />
       )}
-    </div>
+    </>
   );
 }

@@ -16,6 +16,7 @@ interface SidebarProps {
   onCreateTag: (name: string, parentId?: string, color?: string) => void;
   onUpdateTag: (id: string, updates: Partial<Tag>) => void;
   onDeleteTag: (id: string) => void;
+  onOpenSettings: () => void;
 }
 
 const sources: { value: Source | null; label: string }[] = [
@@ -27,10 +28,10 @@ const sources: { value: Source | null; label: string }[] = [
 ];
 
 const sourceColors: Record<string, string> = {
-  claude: "#D08770",
-  perplexity: "#81A1C1",
-  chatgpt: "#A3BE8C",
-  other: "#4C566A",
+  claude: "var(--source-claude)",
+  perplexity: "var(--source-perplexity)",
+  chatgpt: "var(--source-chatgpt)",
+  other: "var(--source-other)",
 };
 
 const tagColors = ["#88C0D0", "#81A1C1", "#5E81AC", "#BF616A", "#D08770", "#EBCB8B", "#A3BE8C", "#B48EAD"];
@@ -38,7 +39,7 @@ const tagColors = ["#88C0D0", "#81A1C1", "#5E81AC", "#BF616A", "#D08770", "#EBCB
 export function Sidebar({
   tags, selectedTagId, selectedSource, searchQuery, recentChats,
   onSearch, onSelectTag, onSelectSource, onSelectChat,
-  onCreateTag, onUpdateTag, onDeleteTag,
+  onCreateTag, onUpdateTag, onDeleteTag, onOpenSettings,
 }: SidebarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const debouncedSearch = useDebounce(localSearch, 300);
@@ -56,12 +57,20 @@ export function Sidebar({
   return (
     <aside className="sidebar-inner">
       <div className="sidebar-header">
-        <div className="sidebar-logo">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-          </svg>
+        <div className="sidebar-header-left">
+          <div className="sidebar-logo">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+            </svg>
+          </div>
+          <span className="sidebar-title">Mnemo</span>
         </div>
-        <span className="sidebar-title">Mnemo</span>
+        <button className="settings-btn" onClick={onOpenSettings} title="Settings">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
       </div>
 
       <div className="sidebar-search" style={{ position: "relative" }}>
