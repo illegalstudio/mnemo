@@ -34,9 +34,7 @@ export default function App() {
 
   const recentChats = useMemo(() => chats.slice(0, 5), [chats]);
 
-  const handleImport = async (
-    files: { name: string; content: string }[]
-  ) => {
+  const handleImport = async (files: { name: string; content: string }[]) => {
     for (const file of files) {
       await importFile(file.name, file.content);
     }
@@ -45,13 +43,17 @@ export default function App() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full bg-nord-0">
-        <div className="text-nord-8 animate-pulse text-lg">Loading...</div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-nord-3 border-t-nord-8 rounded-full animate-spin" />
+          <span className="text-sm text-nord-3 font-light tracking-wide">Loading archive...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full bg-nord-0">
+      {/* Sidebar */}
       <Sidebar
         tags={tags}
         selectedTagId={selectedTagId}
@@ -67,6 +69,7 @@ export default function App() {
         onDeleteTag={deleteTag}
       />
 
+      {/* Center: chat list */}
       <ChatList
         chats={chats}
         selectedChatId={selectedChat?.id ?? null}
@@ -76,6 +79,7 @@ export default function App() {
         onDeleteChat={deleteChat}
       />
 
+      {/* Right: detail panel */}
       {selectedChat && (
         <ChatDetail
           chat={selectedChat}
