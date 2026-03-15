@@ -39,6 +39,7 @@ export default function ChatDetail({
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [tagHighlight, setTagHighlight] = useState(-1);
   const [tocWidth, setTocWidth] = useState(200);
+  const [tocResizing, setTocResizing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const tocDragging = useRef(false);
@@ -223,6 +224,7 @@ export default function ChatDetail({
               <div className="detail-toc-handle" onMouseDown={(e) => {
                 e.preventDefault();
                 tocDragging.current = true;
+                setTocResizing(true);
                 const startX = e.clientX;
                 const startWidth = tocWidth;
                 document.body.style.cursor = "col-resize";
@@ -234,6 +236,7 @@ export default function ChatDetail({
                 };
                 const onUp = () => {
                   tocDragging.current = false;
+                  setTocResizing(false);
                   document.body.style.cursor = "";
                   document.body.style.userSelect = "";
                   document.removeEventListener("mousemove", onMove);
@@ -245,7 +248,7 @@ export default function ChatDetail({
             </>
           )}
           <div ref={contentRef} className="md-content detail-content-main">
-            {isResizing ? (
+            {isResizing || tocResizing ? (
               <div style={{ padding: 20, color: "var(--text-faint)", fontSize: 13 }}>Resizing...</div>
             ) : (
             <Markdown
