@@ -6,7 +6,11 @@ import ChatList from "./components/ChatList/ChatList";
 import ChatDetail from "./components/ChatDetail/ChatDetail";
 import Settings from "./components/Settings/Settings";
 
-function ResizeHandle({ onResize }: { onResize: (delta: number) => void }) {
+function ResizeHandle({ onResize, onResizeStart, onResizeEnd }: {
+  onResize: (delta: number) => void;
+  onResizeStart?: () => void;
+  onResizeEnd?: () => void;
+}) {
   const dragging = useRef(false);
   const lastX = useRef(0);
 
@@ -16,6 +20,7 @@ function ResizeHandle({ onResize }: { onResize: (delta: number) => void }) {
     lastX.current = e.clientX;
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
+    onResizeStart?.();
 
     const onMouseMove = (ev: MouseEvent) => {
       if (!dragging.current) return;
@@ -30,11 +35,12 @@ function ResizeHandle({ onResize }: { onResize: (delta: number) => void }) {
       document.body.style.userSelect = "";
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
+      onResizeEnd?.();
     };
 
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
-  }, [onResize]);
+  }, [onResize, onResizeStart, onResizeEnd]);
 
   return <div className="resize-handle" onMouseDown={onMouseDown} />;
 }
@@ -53,6 +59,10 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [chatListWidth, setChatListWidth] = useState(260);
+  const [isResizing, setIsResizing] = useState(false);
+
+  const handleResizeStart = useCallback(() => setIsResizing(true), []);
+  const handleResizeEnd = useCallback(() => setIsResizing(false), []);
 
 
   const handleImport = async (files: { name: string; content: string }[]) => {
@@ -90,7 +100,7 @@ export default function App() {
             onOpenSettings={() => setShowSettings(true)}
           />
         </div>
-        <ResizeHandle onResize={handleSidebarResize} />
+        <ResizeHandle onResize={handleSidebarResize} onResizeStart={handleResizeStart} onResizeEnd={handleResizeEnd} />
         <div
           className={`center-panel ${selectedChat ? "" : "expanded"}`}
           style={selectedChat ? { width: chatListWidth, minWidth: chatListWidth } : undefined}
@@ -104,7 +114,7 @@ export default function App() {
         </div>
         {selectedChat && (
           <>
-            <ResizeHandle onResize={handleChatListResize} />
+            <ResizeHandle onResize={handleChatListResize} onResizeStart={handleResizeStart} onResizeEnd={handleResizeEnd} />
             <ChatDetail
               chat={selectedChat} tags={selectedChatTags} allTags={tags}
               attachments={selectedChatAttachments}
@@ -117,6 +127,7 @@ export default function App() {
                 }
               }}
               onAddAttachment={addAttachment} onRemoveAttachment={removeAttachment}
+              isResizing={isResizing}
             />
           </>
         )}

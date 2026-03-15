@@ -19,6 +19,7 @@ interface ChatDetailProps {
   onCreateTag: (name: string) => Promise<void> | void;
   onAddAttachment: (chatId: string, filename: string, filePath: string, mimeType: string | null) => void;
   onRemoveAttachment: (attachmentId: string) => void;
+  isResizing?: boolean;
 }
 
 function slugify(text: string): string {
@@ -29,7 +30,7 @@ const sourceLabels: Record<string, string> = { claude: "Claude", perplexity: "Pe
 
 export default function ChatDetail({
   chat, tags, allTags, attachments, onUpdateChat, onClose,
-  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment,
+  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, isResizing,
 }: ChatDetailProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(chat.title);
@@ -244,6 +245,9 @@ export default function ChatDetail({
             </>
           )}
           <div ref={contentRef} className="md-content detail-content-main">
+            {isResizing ? (
+              <div style={{ padding: 20, color: "var(--text-faint)", fontSize: 13 }}>Resizing...</div>
+            ) : (
             <Markdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeRaw]}
@@ -265,6 +269,7 @@ export default function ChatDetail({
             >
               {chat.content_md}
             </Markdown>
+            )}
           </div>
         </div>
       </div>
