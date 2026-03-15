@@ -163,11 +163,15 @@ export default function ChatDetail({
                   setTagHighlight((prev) => (prev - 1 + totalItems) % totalItems);
                 } else if (e.key === "Enter") {
                   e.preventDefault();
-                  const idx = tagHighlight >= 0 ? tagHighlight : 0;
-                  if (filteredTags.length > 0 && idx < filteredTags.length) {
-                    onAddTag(chat.id, filteredTags[idx].id);
+                  if (tagHighlight >= 0 && tagHighlight < filteredTags.length) {
+                    onAddTag(chat.id, filteredTags[tagHighlight].id);
                   } else {
-                    onCreateTag(tagSearch.trim());
+                    const exact = filteredTags.find((t) => t.name.toLowerCase() === tagSearch.trim().toLowerCase());
+                    if (exact) {
+                      onAddTag(chat.id, exact.id);
+                    } else {
+                      onCreateTag(tagSearch.trim());
+                    }
                   }
                   setTagSearch(""); setShowTagDropdown(false); setTagHighlight(-1);
                 } else if (e.key === "Escape") {
