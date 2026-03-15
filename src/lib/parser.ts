@@ -1,5 +1,26 @@
 import type { Chat, Source, HeadingEntry } from "../types";
 
+const MNEMO_META_RE = /^<!--\s*mnemo:(.+?)\s*-->\n?/;
+
+function parseMnemoMeta(content: string): { source?: Source; url?: string; exportedAt?: string; cleanContent: string } {
+  const match = content.match(MNEMO_META_RE);
+  if (!match) return { cleanContent: content };
+
+  const meta: Record<string, string> = {};
+  match[1].split(",").forEach((pair) => {
+    const [key, value] = pair.split("=").map((s) => s.trim());
+    if (key && value) meta[key] = value;
+  });
+
+  const cleanContent = content.replace(MNEMO_META_RE, "");
+  return {
+    source: meta.source as Source | undefined,
+    url: meta.url,
+    exportedAt: meta.exported_at,
+    cleanContent,
+  };
+}
+
 export function detectSource(content: string): Source {
   if (/perplexity\.ai/i.test(content) || /pplx/i.test(content)) {
     return "perplexity";
@@ -44,14 +65,15 @@ export function parseImportFile(
   filename: string,
   content: string
 ): Omit<Chat, "id"> {
-  const source = detectSource(content);
-  const title = extractTitle(content, filename);
+  const { source: metaSource, cleanContent } = parseMnemoMeta(content);
+  const source = metaSource || detectSource(cleanContent);
+  const title = extractTitle(cleanContent, filename);
 
   return {
     title,
     summary: null,
     source,
-    content_md: content,
+    content_md: cleanContent,
     imported_at: new Date().toISOString(),
     chat_date: null,
   };

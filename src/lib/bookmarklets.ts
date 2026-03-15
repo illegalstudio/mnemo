@@ -26,7 +26,8 @@ const chatgptScript = `
     ${copyBlock()}
     var msgs = document.querySelectorAll('[data-message-author-role]');
     if (!msgs.length) { alert('No conversation found on this page.'); return; }
-    var md = '# ' + (document.title || 'ChatGPT Chat') + '\\n\\n';
+    var md = '<!-- mnemo:source=chatgpt,url=' + location.href + ' -->\\n';
+    md += '# ' + (document.title || 'ChatGPT Chat') + '\\n\\n';
     msgs.forEach(function(el) {
       var role = el.getAttribute('data-message-author-role');
       var content = el.innerText.trim();
@@ -50,7 +51,8 @@ const claudeScript = `
     if (!turns.length) turns = document.querySelectorAll('.font-claude-message, .font-user-message');
     if (!turns.length) turns = document.querySelectorAll('article, [role="article"]');
     if (!turns.length) { alert('No conversation found on this page.'); return; }
-    var md = '# ' + (document.title || 'Claude Chat') + '\\n\\n';
+    var md = '<!-- mnemo:source=claude,url=' + location.href + ' -->\\n';
+    md += '# ' + (document.title || 'Claude Chat') + '\\n\\n';
     turns.forEach(function(el) {
       var isHuman = el.querySelector('[data-testid="user-message"]')
         || el.classList.contains('font-user-message')
@@ -77,7 +79,8 @@ const perplexityScript = `
     var answers = document.querySelectorAll('[class*="AnswerContent"], [class*="answer"]');
     if (!answers.length) answers = document.querySelectorAll('article, .prose');
     if (!answers.length) { alert('No content found on this page.'); return; }
-    var md = '# ' + (document.title || 'Perplexity Search') + '\\n\\n';
+    var md = '<!-- mnemo:source=perplexity,url=' + location.href + ' -->\\n';
+    md += '# ' + (document.title || 'Perplexity Search') + '\\n\\n';
     answers.forEach(function(el) {
       md += el.innerText.trim() + '\\n\\n---\\n\\n';
     });
