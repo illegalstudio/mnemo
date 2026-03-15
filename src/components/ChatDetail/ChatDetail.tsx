@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback, memo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { open as shellOpen } from "@tauri-apps/plugin-shell";
+import { Command } from "@tauri-apps/plugin-shell";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import Markdown from "react-markdown";
@@ -127,7 +127,11 @@ export default function ChatDetail({
         console.error("Failed to read HTML file:", e);
       }
     } else {
-      await shellOpen(att.file_path);
+      try {
+        await Command.create("open", [att.file_path]).execute();
+      } catch (e) {
+        console.error("Failed to open attachment:", e);
+      }
     }
   }, []);
 
@@ -300,7 +304,12 @@ export default function ChatDetail({
           )}
           <div ref={contentRef} className="md-content detail-content-main">
             {isResizing || tocResizing ? (
-              <div style={{ padding: 20, color: "var(--text-faint)", fontSize: 13 }}>Resizing...</div>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8, color: "var(--text-faint)" }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3" />
+                </svg>
+                <span style={{ fontSize: 12 }}>Adjusting layout...</span>
+              </div>
             ) : (
               <MemoizedMarkdown content={chat.content_md} contentRef={contentRef} />
             )}

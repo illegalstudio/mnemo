@@ -14,13 +14,25 @@
     "dialog:default",
     "dialog:allow-open",
     "shell:default",
-    "shell:allow-open",
+    {
+      "identifier": "shell:allow-open",
+      "allow": [
+        { "url": "file://**" },
+        { "url": "https://**" },
+        { "url": "http://**" }
+      ]
+    },
     {
       "identifier": "shell:allow-spawn",
       "allow": [
         {
           "name": "claude",
           "cmd": "claude",
+          "args": true
+        },
+        {
+          "name": "open",
+          "cmd": "open",
           "args": true
         }
       ]
@@ -29,6 +41,12 @@
     "fs:default",
     "fs:allow-read-text-file",
     "fs:allow-exists",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "**" }
+      ]
+    },
     "core:window:allow-create",
     "core:webview:allow-create-webview-window"
   ]
