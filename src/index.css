@@ -923,8 +923,12 @@ html, body, #root {
 .md-content a:hover { text-decoration-thickness: 2px; }
 .md-content strong { font-weight: 600; color: var(--text-primary); }
 .md-content em { color: var(--text-secondary); }
-.md-content ul, .md-content ol { margin: 10px 0; padding-left: 22px; }
+.md-content ul { margin: 10px 0; padding-left: 24px; list-style-type: disc; }
+.md-content ol { margin: 10px 0; padding-left: 24px; list-style-type: decimal; }
+.md-content ul ul { list-style-type: circle; }
+.md-content ul ul ul { list-style-type: square; }
 .md-content li { margin: 4px 0; color: var(--text-secondary); }
+.md-content li::marker { color: var(--text-muted); }
 
 .md-content blockquote {
   border-left: 3px solid var(--blockquote-border);
