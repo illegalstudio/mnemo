@@ -331,50 +331,64 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
-  gap: 12px;
+  gap: 8px;
+  background: var(--bg-surface);
 }
 
 .toolbar-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .toolbar select {
-  background: var(--bg-surface);
+  background: var(--bg-base);
   border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 4px 8px;
+  border-radius: 6px;
+  padding: 5px 8px;
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   outline: none;
   cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.toolbar select:hover {
+  border-color: var(--text-faint);
 }
 
 .toolbar .chat-count {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
+  padding: 2px 6px;
+  background: var(--bg-base);
+  border-radius: 4px;
 }
 
 .import-btn {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 12px;
-  border: none;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  font-family: inherit;
 }
 
-.import-btn:hover { background: var(--accent-hover); }
+.import-btn:hover {
+  border-color: var(--text-faint);
+  color: var(--text-primary);
+}
 
 .chat-list { flex: 1; overflow-y: auto; }
 
