@@ -109,6 +109,34 @@ export function convertHtmlToMarkdown(raw: string): {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   turndown.remove(["button", "nav", "style", "script", "svg"] as any);
 
+  // ChatGPT code blocks: <pre> contains deeply nested CodeMirror divs
+  // Extract code text from .cm-content and wrap in proper fenced code block
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  turndown.addRule("chatgptCodeBlock", {
+    filter: (node: any) => {
+      return node.nodeName === "PRE" && node.querySelector(".cm-content");
+    },
+    replacement: (_content: string, node: any) => {
+      // Get language from the header label if available
+      const langLabel = node.querySelector('[class*="font-medium"]');
+      const lang = langLabel?.textContent?.trim()?.toLowerCase() || "";
+      // Get code from cm-content spans
+      const cmContent = node.querySelector(".cm-content");
+      if (!cmContent) return _content;
+      // Extract text preserving line breaks from <br> and span structure
+      const lines: string[] = [];
+      cmContent.childNodes.forEach((child: Node) => {
+        if (child.nodeName === "BR") {
+          // ignore, line breaks are handled by spans
+        } else {
+          lines.push((child as HTMLElement).textContent || "");
+        }
+      });
+      const code = lines.join("\n").trim();
+      return `\n\n\`\`\`${lang}\n${code}\n\`\`\`\n\n`;
+    },
+  });
+
   // Strip ChatGPT table wrapper divs so turndown sees the raw <table>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   turndown.addRule("unwrapTableContainers", {
