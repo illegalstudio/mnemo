@@ -213,9 +213,10 @@ export async function updateChat(id: string, updates: Partial<Chat>): Promise<vo
 
 export async function deleteChat(id: string): Promise<void> {
   const d = await getDb();
+  await d.execute("DELETE FROM attachments WHERE chat_id = ?", [id]);
+  await d.execute("DELETE FROM chat_tags WHERE chat_id = ?", [id]);
   await d.execute("DELETE FROM chats WHERE id = ?", [id]);
   await invoke("delete_from_index", { id });
-  await d.execute("DELETE FROM chat_tags WHERE chat_id = ?", [id]);
 }
 
 export async function getAllTags(): Promise<TagWithCount[]> {

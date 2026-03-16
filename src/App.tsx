@@ -194,6 +194,7 @@ export default function App() {
                     }
                   }}
                   onAddAttachment={addAttachment} onRemoveAttachment={removeAttachment}
+                  onDeleteChat={deleteChat}
                   isResizing={isResizing}
                 />
               </>

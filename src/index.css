@@ -556,6 +556,7 @@ html, body, #root {
 }
 
 .close-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.delete-chat-btn:hover { color: var(--red); }
 
 .detail-scroll {
   flex: 1;
