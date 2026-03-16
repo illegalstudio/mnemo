@@ -600,6 +600,37 @@ html, body, #root {
 .close-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 .delete-chat-btn:hover { color: var(--red); }
 
+.regenerate-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  color: var(--text-faint);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+
+.regenerate-btn:hover { background: var(--bg-hover); color: var(--accent); }
+.regenerate-btn:disabled { opacity: 0.5; cursor: default; }
+
+.regenerate-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .detail-scroll {
   flex: 1;
   overflow: hidden;

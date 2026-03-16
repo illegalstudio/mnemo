@@ -160,3 +160,25 @@ export async function generateMetadata(
     return null;
   }
 }
+
+/**
+ * Regenerate a single field using AI
+ */
+export async function generateSingleField(
+  contentMd: string,
+  field: "title" | "summary" | "tags",
+  settings: AnalysisSettings,
+  existingTags: string[] = []
+): Promise<Partial<MetadataResult> | null> {
+  // Create a temporary settings object with only the requested field enabled
+  const singleFieldSettings: AnalysisSettings = {
+    ...settings,
+    enabled: true,
+    fields: {
+      title: field === "title",
+      summary: field === "summary",
+      tags: field === "tags",
+    },
+  };
+  return generateMetadata(contentMd, singleFieldSettings, existingTags);
+}

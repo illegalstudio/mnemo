@@ -48,6 +48,7 @@ interface ChatDetailProps {
   onAddAttachment: (chatId: string, filename: string, filePath: string, mimeType: string | null) => void;
   onRemoveAttachment: (attachmentId: string) => void;
   onDeleteChat: (id: string) => void;
+  onRegenerateField: (chatId: string, field: "title" | "summary" | "tags") => Promise<void>;
   isResizing?: boolean;
 }
 
@@ -59,7 +60,7 @@ const sourceLabels: Record<string, string> = { claude: "Claude", perplexity: "Pe
 
 export default function ChatDetail({
   chat, tags, allTags, attachments, onUpdateChat, onClose,
-  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, onDeleteChat, isResizing,
+  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, onDeleteChat, onRegenerateField, isResizing,
 }: ChatDetailProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(chat.title);
@@ -68,6 +69,7 @@ export default function ChatDetail({
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [tagHighlight, setTagHighlight] = useState(-1);
   const [tocWidth, setTocWidth] = useState(200);
+  const [regenerating, setRegenerating] = useState<string | null>(null);
   const [showChatSearch, setShowChatSearch] = useState(false);
   const [chatSearchTerm, setChatSearchTerm] = useState("");
   const [chatSearchIndex, setChatSearchIndex] = useState(0);
@@ -299,7 +301,13 @@ export default function ChatDetail({
             <input className="detail-title-input" value={titleValue} onChange={(e) => setTitleValue(e.target.value)}
               onBlur={handleTitleSave} onKeyDown={(e) => e.key === "Enter" && handleTitleSave()} autoFocus />
           ) : (
-            <div className="detail-title" onClick={() => setEditingTitle(true)}>{chat.title}</div>
+            <div style={{ display: "flex", alignItems: "start", gap: 6 }}>
+              <div className="detail-title" style={{ flex: 1 }} onClick={() => setEditingTitle(true)}>{chat.title}</div>
+              <button className="regenerate-btn" title="Regenerate title with AI" disabled={regenerating === "title"}
+                onClick={async () => { setRegenerating("title"); await onRegenerateField(chat.id, "title"); setRegenerating(null); }}>
+                {regenerating === "title" ? <span className="regenerate-spinner" /> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>}
+              </button>
+            </div>
           )}
           <div className="detail-meta">
             <span className={`source-badge ${chat.source}`}>{sourceLabels[chat.source] || chat.source}</span>
@@ -309,14 +317,26 @@ export default function ChatDetail({
 
         {/* Summary */}
         <div className="detail-section">
-          <div className="field-label">Summary</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div className="field-label" style={{ marginBottom: 0 }}>Summary</div>
+            <button className="regenerate-btn" title="Regenerate summary with AI" disabled={regenerating === "summary"}
+              onClick={async () => { setRegenerating("summary"); await onRegenerateField(chat.id, "summary"); setRegenerating(null); }}>
+              {regenerating === "summary" ? <span className="regenerate-spinner" /> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>}
+            </button>
+          </div>
           <textarea className="detail-textarea" value={summaryValue} onChange={(e) => setSummaryValue(e.target.value)}
             onBlur={handleSummarySave} placeholder="Add a summary..." rows={3} />
         </div>
 
         {/* Tags */}
         <div className="detail-section">
-          <div className="field-label">Tags</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div className="field-label" style={{ marginBottom: 0 }}>Tags</div>
+            <button className="regenerate-btn" title="Regenerate tags with AI" disabled={regenerating === "tags"}
+              onClick={async () => { setRegenerating("tags"); await onRegenerateField(chat.id, "tags"); setRegenerating(null); }}>
+              {regenerating === "tags" ? <span className="regenerate-spinner" /> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>}
+            </button>
+          </div>
           {tags.length > 0 && (
             <div className="tag-list">
               {tags.map((tag) => (

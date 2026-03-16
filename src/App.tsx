@@ -2,6 +2,8 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { isMnemoHtmlPaste, convertHtmlToMarkdown } from "./lib/html-parser";
+import { generateSingleField } from "./lib/metadata";
+import * as db from "./lib/db";
 import { useDatabase } from "./hooks/useDatabase";
 import { useTheme } from "./hooks/useTheme";
 import { useAnalysisSettings } from "./hooks/useAnalysisSettings";
@@ -79,6 +81,30 @@ export default function App() {
       await importFile(name, content, undefined, undefined, analysisSettings);
     }
   }, [importFile, analysisSettings]);
+
+  const handleRegenerateField = useCallback(async (chatId: string, field: "title" | "summary" | "tags") => {
+    const chatObj = chats.find(c => c.id === chatId);
+    if (!chatObj) return;
+    const allTags = await db.getAllTags();
+    const tagNames = allTags.map(t => t.slug);
+    const result = await generateSingleField(chatObj.content_md, field, analysisSettings, tagNames);
+    if (!result) return;
+    if (field === "title" && result.title) {
+      await updateChat(chatId, { title: result.title });
+    } else if (field === "summary" && result.summary) {
+      await updateChat(chatId, { summary: result.summary });
+    } else if (field === "tags" && result.tags) {
+      for (const tagName of result.tags) {
+        const existing = allTags.find(t => t.slug === tagName.toLowerCase().replace(/\s+/g, '-'));
+        if (existing) {
+          await addTagToChat(chatId, existing.id);
+        } else {
+          const newTag = await createTag(tagName);
+          if (newTag) await addTagToChat(chatId, newTag.id);
+        }
+      }
+    }
+  }, [chats, analysisSettings, updateChat, addTagToChat, createTag]);
 
   // Cmd+Shift+F to focus global search
   useEffect(() => {
@@ -195,6 +221,7 @@ export default function App() {
                   }}
                   onAddAttachment={addAttachment} onRemoveAttachment={removeAttachment}
                   onDeleteChat={deleteChat}
+                  onRegenerateField={handleRegenerateField}
                   isResizing={isResizing}
                 />
               </>
