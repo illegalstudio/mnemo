@@ -74,9 +74,11 @@ export function extractHeadings(content: string): HeadingEntry[] {
   while ((match = regex.exec(content)) !== null) {
     const level = match[1].length;
     const rawText = match[2].trim();
-    const text = stripMarkdown(stripEmoji(rawText)).trim();
+    // Truncate very long headings (user messages can be thousands of chars)
+    const truncatedRaw = rawText.length > 200 ? rawText.slice(0, 200) : rawText;
+    const text = stripMarkdown(stripEmoji(truncatedRaw)).trim();
     if (!text) continue;
-    headings.push({ level, text, id: slugifyHeading(rawText) });
+    headings.push({ level, text, id: slugifyHeading(truncatedRaw) });
   }
 
   return headings;

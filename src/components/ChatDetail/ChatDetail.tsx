@@ -146,7 +146,9 @@ function getTextContent(node: React.ReactNode): string {
 }
 
 function slugify(text: string): string {
-  return text
+  // Truncate to match parser's heading extraction (200 char limit)
+  const truncated = text.length > 200 ? text.slice(0, 200) : text;
+  return truncated
     .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\u200d\ufe0f]/gu, "")
     .trim()
     .toLowerCase()
