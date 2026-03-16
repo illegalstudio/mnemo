@@ -100,9 +100,34 @@ export async function generateMetadata(
 
     if (obj.result && typeof obj.result === "string") {
       const resultStr = obj.result as string;
-      const jsonMatch = resultStr.match(/```(?:json)?\s*([\s\S]*?)```/) || resultStr.match(/(\{[\s\S]*\})/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[1].trim());
+      // Try to extract JSON: look for a JSON block with our expected keys
+      let extracted: string | null = null;
+      // First try: ```json ... ``` block
+      const fenceMatch = resultStr.match(/```json\s*([\s\S]*?)```/);
+      if (fenceMatch) {
+        extracted = fenceMatch[1].trim();
+      }
+      // Second try: find a { that contains "title" or "summary" or "tags"
+      if (!extracted) {
+        const braceMatch = resultStr.match(/\{[^{}]*(?:"title"|"summary"|"tags")[^{}]*\}/);
+        if (braceMatch) {
+          extracted = braceMatch[0];
+        }
+      }
+      // Third try: any ``` block
+      if (!extracted) {
+        const anyFence = resultStr.match(/```\w*\s*([\s\S]*?)```/);
+        if (anyFence) {
+          extracted = anyFence[1].trim();
+        }
+      }
+      if (extracted) {
+        try {
+          result = JSON.parse(extracted);
+        } catch (parseErr) {
+          console.error("[metadata] failed to parse extracted JSON:", parseErr, extracted);
+          return null;
+        }
       } else {
         console.error("[metadata] could not extract JSON from result field");
         return null;
