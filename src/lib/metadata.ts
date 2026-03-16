@@ -121,6 +121,7 @@ export async function generateMetadata(
           extracted = anyFence[1].trim();
         }
       }
+      console.log("[metadata] result field:", resultStr.slice(0, 1000));
       if (extracted) {
         try {
           result = JSON.parse(extracted);

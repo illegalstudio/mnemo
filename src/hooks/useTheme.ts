@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { getSetting, setSetting } from "../lib/db";
 
 export type ThemeMode = "light" | "dark" | "system";
 
@@ -11,39 +12,40 @@ function resolveTheme(mode: ThemeMode): "light" | "dark" {
 }
 
 export function useTheme() {
-  const [mode, setMode] = useState<ThemeMode>(() => {
-    const saved = localStorage.getItem("mnemo-theme");
-    return (saved as ThemeMode) || "system";
-  });
+  const [mode, setMode] = useState<ThemeMode>("system");
+  const [loaded, setLoaded] = useState(false);
 
-  const [resolved, setResolved] = useState<"light" | "dark">(() => resolveTheme(mode));
+  // Load from SQLite on mount
+  useEffect(() => {
+    getSetting("theme").then((saved) => {
+      if (saved && ["light", "dark", "system"].includes(saved)) {
+        setMode(saved as ThemeMode);
+      }
+      setLoaded(true);
+    });
+  }, []);
 
   // Apply theme to DOM
   useEffect(() => {
     const theme = resolveTheme(mode);
-    setResolved(theme);
     document.documentElement.setAttribute("data-theme", theme);
   }, [mode]);
 
   // Listen for system theme changes when in "system" mode
   useEffect(() => {
     if (mode !== "system") return;
-
     const mql = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => {
-      const theme = getSystemTheme();
-      setResolved(theme);
-      document.documentElement.setAttribute("data-theme", theme);
+      document.documentElement.setAttribute("data-theme", getSystemTheme());
     };
-
     mql.addEventListener("change", handler);
     return () => mql.removeEventListener("change", handler);
   }, [mode]);
 
   const setThemeMode = useCallback((newMode: ThemeMode) => {
     setMode(newMode);
-    localStorage.setItem("mnemo-theme", newMode);
+    setSetting("theme", newMode);
   }, []);
 
-  return { mode, resolved, setThemeMode };
+  return { mode, resolved: resolveTheme(mode), setThemeMode, loaded };
 }

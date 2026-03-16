@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { getSetting, setSetting } from "../lib/db";
 
 export const LANGUAGES = [
   { code: "en", label: "English" },
@@ -32,7 +33,7 @@ export interface AnalysisSettings {
   tagCount: { min: number; max: number };
 }
 
-const STORAGE_KEY = "mnemo-analysis-settings";
+const STORAGE_KEY = "analysis-settings";
 
 function getDefaults(): AnalysisSettings {
   return {
@@ -44,31 +45,32 @@ function getDefaults(): AnalysisSettings {
   };
 }
 
-function load(): AnalysisSettings {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      return {
-        ...getDefaults(),
-        ...parsed,
-        fields: { ...getDefaults().fields, ...parsed.fields },
-        languages: { ...getDefaults().languages, ...parsed.languages },
-        tagCount: { ...getDefaults().tagCount, ...parsed.tagCount },
-      };
-    }
-  } catch {
-    // ignore
-  }
-  return getDefaults();
-}
-
 function save(settings: AnalysisSettings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  setSetting(STORAGE_KEY, JSON.stringify(settings));
 }
 
 export function useAnalysisSettings() {
-  const [settings, setSettings] = useState<AnalysisSettings>(load);
+  const [settings, setSettings] = useState<AnalysisSettings>(getDefaults);
+
+  // Load from SQLite on mount
+  useEffect(() => {
+    getSetting(STORAGE_KEY).then((stored) => {
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setSettings({
+            ...getDefaults(),
+            ...parsed,
+            fields: { ...getDefaults().fields, ...parsed.fields },
+            languages: { ...getDefaults().languages, ...parsed.languages },
+            tagCount: { ...getDefaults().tagCount, ...parsed.tagCount },
+          });
+        } catch {
+          // ignore
+        }
+      }
+    });
+  }, []);
 
   const update = useCallback((updates: Partial<AnalysisSettings>) => {
     setSettings((prev) => {

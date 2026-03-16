@@ -55,6 +55,13 @@ export async function initDb(): Promise<Database> {
     )
   `);
 
+  await instance.execute(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `);
+
   // Migration: drop old FTS5 table
   await instance.execute("DROP TABLE IF EXISTS chats_fts");
 
@@ -300,5 +307,24 @@ export async function getChatsBySource(source: string): Promise<Chat[]> {
   return d.select<Chat[]>(
     "SELECT * FROM chats WHERE source = ? ORDER BY imported_at DESC",
     [source]
+  );
+}
+
+// ---- Settings ----
+
+export async function getSetting(key: string): Promise<string | null> {
+  const d = await getDb();
+  const rows = await d.select<{ value: string }[]>(
+    "SELECT value FROM settings WHERE key = ?",
+    [key]
+  );
+  return rows.length > 0 ? rows[0].value : null;
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  const d = await getDb();
+  await d.execute(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    [key, value]
   );
 }
