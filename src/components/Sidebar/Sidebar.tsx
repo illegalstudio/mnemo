@@ -28,8 +28,19 @@ interface SidebarProps {
   onDeleteFolder: (id: string) => void;
   onMoveChatToFolder: (chatId: string, folderId: string | null) => void;
   onMoveFolderToParent: (folderId: string, newParentId: string | null) => Promise<boolean>;
+  trashCount: number;
+  onShowTrash: () => void;
+  activeFilters: ActiveFilters;
+  onSetFilters: (filters: ActiveFilters) => void;
   onOpenSettings: () => void;
   onImportClick: () => void;
+}
+
+export interface ActiveFilters {
+  hasAttachment: boolean;
+  hasSummary: boolean;
+  createdAfter: string; // ISO date or ""
+  createdBefore: string; // ISO date or ""
 }
 
 const sources: { value: Source | null; label: string }[] = [
@@ -99,6 +110,7 @@ export function Sidebar({
   onSearch, onToggleTag, onSelectTag, onClearTags, onSelectSource, onSelectChat,
   onCreateTag, onUpdateTag, onDeleteTag,
   onSelectFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onMoveChatToFolder, onMoveFolderToParent,
+  trashCount, onShowTrash, activeFilters, onSetFilters,
   onOpenSettings, onImportClick,
 }: SidebarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -168,6 +180,42 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-scroll">
+        {/* Filters */}
+        <div className="sidebar-section">
+          <div className="sidebar-section-title" onClick={() => toggleSection("filters")} style={{ cursor: "pointer" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <ChevronIcon expanded={!collapsed.filters} />
+              Filters
+            </span>
+            {(activeFilters.hasAttachment || activeFilters.hasSummary || activeFilters.createdAfter || activeFilters.createdBefore) && (
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", flexShrink: 0 }} />
+            )}
+          </div>
+          {!collapsed.filters && (
+            <div className="sidebar-filters">
+              <label className="sidebar-filter-check">
+                <input type="checkbox" checked={activeFilters.hasAttachment} onChange={(e) => onSetFilters({ ...activeFilters, hasAttachment: e.target.checked })} />
+                Has attachment
+              </label>
+              <label className="sidebar-filter-check">
+                <input type="checkbox" checked={activeFilters.hasSummary} onChange={(e) => onSetFilters({ ...activeFilters, hasSummary: e.target.checked })} />
+                Has summary
+              </label>
+              <div className="sidebar-filter-row">
+                <label className="sidebar-filter-label">After</label>
+                <input type="date" className="sidebar-filter-date" value={activeFilters.createdAfter} onChange={(e) => onSetFilters({ ...activeFilters, createdAfter: e.target.value })} />
+              </div>
+              <div className="sidebar-filter-row">
+                <label className="sidebar-filter-label">Before</label>
+                <input type="date" className="sidebar-filter-date" value={activeFilters.createdBefore} onChange={(e) => onSetFilters({ ...activeFilters, createdBefore: e.target.value })} />
+              </div>
+              {(activeFilters.hasAttachment || activeFilters.hasSummary || activeFilters.createdAfter || activeFilters.createdBefore) && (
+                <button onClick={() => onSetFilters({ hasAttachment: false, hasSummary: false, createdAfter: "", createdBefore: "" })} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 11, padding: "2px 8px" }}>Clear filters</button>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Folders */}
         <div className="sidebar-section">
           <div className="sidebar-section-title" onClick={() => toggleSection("folders")} style={{ cursor: "pointer" }}>
@@ -277,6 +325,16 @@ export function Sidebar({
             ))}
           </div>
         )}
+        {/* Trash */}
+        <div className="sidebar-section">
+          <button className="sidebar-btn" onClick={onShowTrash} style={{ color: trashCount > 0 ? "var(--text-secondary)" : "var(--text-faint)" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            </svg>
+            Trash
+            {trashCount > 0 && <span className="folder-badge">{trashCount}</span>}
+          </button>
+        </div>
       </div>
     </aside>
   );
