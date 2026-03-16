@@ -47,8 +47,18 @@ function stripEmoji(text: string): string {
   return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\u200d\ufe0f]/gu, "").trim();
 }
 
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")  // bold
+    .replace(/\*(.+?)\*/g, "$1")       // italic
+    .replace(/__(.+?)__/g, "$1")       // bold alt
+    .replace(/_(.+?)_/g, "$1")         // italic alt
+    .replace(/`(.+?)`/g, "$1")         // inline code
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"); // links
+}
+
 function slugifyHeading(text: string): string {
-  return stripEmoji(text)
+  return stripMarkdown(stripEmoji(text))
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
@@ -63,8 +73,8 @@ export function extractHeadings(content: string): HeadingEntry[] {
   while ((match = regex.exec(content)) !== null) {
     const level = match[1].length;
     const rawText = match[2].trim();
-    const text = stripEmoji(rawText);
-    if (!text) continue; // skip headings that are emoji-only
+    const text = stripMarkdown(stripEmoji(rawText)).trim();
+    if (!text) continue;
     headings.push({ level, text, id: slugifyHeading(rawText) });
   }
 

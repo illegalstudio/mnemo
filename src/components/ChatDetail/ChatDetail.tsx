@@ -56,6 +56,12 @@ interface ChatDetailProps {
 function slugify(text: string): string {
   return text
     .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\u200d\ufe0f]/gu, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/_(.+?)_/g, "$1")
+    .replace(/`(.+?)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, "")
