@@ -111,20 +111,20 @@ export default function ChatList({
           <option value="chat_date">Chat Date</option>
           <option value="title">Title</option>
         </select>
-        {multiSelected.size > 0 ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="chat-count">{multiSelected.size} selected</span>
-            <button className="multi-delete-btn" onClick={handleDeleteSelected} title="Delete selected">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Delete
-            </button>
-          </div>
-        ) : (
-          <span className="chat-count">{chats.length} {chats.length === 1 ? "chat" : "chats"}</span>
-        )}
+        <span className="chat-count">{chats.length} {chats.length === 1 ? "chat" : "chats"}</span>
       </div>
+
+      {multiSelected.size > 0 && (
+        <div className="multi-select-bar">
+          <span>{multiSelected.size} selected</span>
+          <button className="multi-delete-btn" onClick={handleDeleteSelected}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete
+          </button>
+        </div>
+      )}
 
       <div className="chat-list" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
         {chats.length === 0 ? (

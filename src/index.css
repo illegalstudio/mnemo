@@ -410,16 +410,30 @@ html, body, #root {
   padding-left: 14px;
 }
 
+.multi-select-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--accent-subtle);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
 .multi-delete-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  padding: 7px 12px;
   border: 1px solid var(--red);
   border-radius: 6px;
   background: transparent;
   color: var(--red);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
