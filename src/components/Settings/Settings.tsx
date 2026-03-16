@@ -111,18 +111,20 @@ export default function Settings({
   };
 
   const handleRestoreFromFile = async () => {
-    const selected = await dialogOpen({
-      multiple: false,
-      filters: [{ name: "Database", extensions: ["db"] }],
-    });
-    if (!selected) return;
-    const filePath = selected as string;
-    if (!window.confirm("Restore from this file? A safety snapshot of the current state will be created first.")) return;
     try {
+      const selected = await dialogOpen({
+        multiple: false,
+        directory: false,
+        filters: [{ name: "Database", extensions: ["db"] }],
+      });
+      console.log("[restore] selected:", selected);
+      if (!selected) return;
+      const filePath = typeof selected === "string" ? selected : String(selected);
       await invoke("restore_snapshot", { sourcePath: filePath });
       setSnapshotStatus("Restored. Reloading...");
       setTimeout(() => window.location.reload(), 1000);
     } catch (e) {
+      console.error("[restore] error:", e);
       setSnapshotStatus("Restore error: " + e);
     }
   };
