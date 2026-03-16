@@ -54,13 +54,25 @@ export async function generateMetadata(
       }
     }
 
-    // Handle Claude CLI JSON output format: may be an array of result objects
-    // or a direct result object
+    // Handle various Claude CLI output formats
     let result: MetadataResult;
-    if (Array.isArray(parsed)) {
-      // Find the text content in the array
-      const textItem = parsed.find((item: { type?: string; text?: string }) =>
-        item.type === "text" && item.text
+    const obj = parsed as Record<string, unknown>;
+
+    if (obj.result && typeof obj.result === "string") {
+      // Claude CLI --output-format json returns { result: "..." }
+      // The result string may contain markdown code fences
+      const resultStr = obj.result as string;
+      const jsonMatch = resultStr.match(/```(?:json)?\s*([\s\S]*?)```/) || resultStr.match(/(\{[\s\S]*\})/);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[1].trim());
+      } else {
+        console.error("[metadata] could not extract JSON from result field");
+        return null;
+      }
+    } else if (Array.isArray(parsed)) {
+      // Array format: [{ type: "text", text: "..." }]
+      const textItem = (parsed as { type?: string; text?: string }[]).find(
+        (item) => item.type === "text" && item.text
       );
       if (textItem?.text) {
         result = JSON.parse(textItem.text);
@@ -68,8 +80,9 @@ export async function generateMetadata(
         console.error("[metadata] no text item in array response");
         return null;
       }
-    } else if (parsed && typeof parsed === "object" && "title" in parsed) {
-      result = parsed as MetadataResult;
+    } else if (obj.title && obj.tags) {
+      // Direct result object
+      result = obj as unknown as MetadataResult;
     } else {
       console.error("[metadata] unexpected response format:", parsed);
       return null;
