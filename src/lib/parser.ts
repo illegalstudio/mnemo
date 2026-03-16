@@ -51,12 +51,13 @@ function slugifyHeading(text: string): string {
 
 export function extractHeadings(content: string): HeadingEntry[] {
   const headings: HeadingEntry[] = [];
-  const regex = /^# (.+)$/gm;
+  const regex = /^(#{1,3}) (.+)$/gm;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(content)) !== null) {
-    const text = match[1].trim();
-    headings.push({ level: 1, text, id: slugifyHeading(text) });
+    const level = match[1].length;
+    const text = match[2].trim();
+    headings.push({ level, text, id: slugifyHeading(text) });
   }
 
   return headings;
