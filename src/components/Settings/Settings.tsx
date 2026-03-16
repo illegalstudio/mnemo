@@ -1,8 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import type { ThemeMode } from "../../hooks/useTheme";
 import type { AnalysisSettings, LangCode } from "../../hooks/useAnalysisSettings";
 import { LANGUAGES } from "../../hooks/useAnalysisSettings";
 import { bookmarklets } from "../../lib/bookmarklets";
+
+interface Snapshot {
+  filename: string;
+  path: string;
+  size_bytes: number;
+  created_at: number;
+}
 
 interface SettingsProps {
   themeMode: ThemeMode;
@@ -40,6 +49,66 @@ export default function Settings({
   onClose,
 }: SettingsProps) {
   const [copied, setCopied] = useState<string | null>(null);
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
+
+  const loadSnapshots = useCallback(async () => {
+    try {
+      const list = await invoke<Snapshot[]>("list_snapshots");
+      setSnapshots(list);
+    } catch (e) {
+      console.error("Failed to load snapshots:", e);
+    }
+  }, []);
+
+  useEffect(() => { loadSnapshots(); }, [loadSnapshots]);
+
+  const handleCreateSnapshot = async () => {
+    try {
+      await invoke("create_snapshot");
+      setSnapshotStatus("Snapshot created");
+      await loadSnapshots();
+      setTimeout(() => setSnapshotStatus(null), 3000);
+    } catch (e) {
+      setSnapshotStatus("Error: " + e);
+    }
+  };
+
+  const handleExportSnapshot = async (snap: Snapshot) => {
+    const date = new Date(snap.created_at * 1000);
+    const defaultName = `mnemo_${date.getFullYear()}${String(date.getMonth()+1).padStart(2,"0")}${String(date.getDate()).padStart(2,"0")}_${String(date.getHours()).padStart(2,"0")}${String(date.getMinutes()).padStart(2,"0")}.db`;
+    const dest = await save({ defaultPath: defaultName, filters: [{ name: "Database", extensions: ["db"] }] });
+    if (dest) {
+      try {
+        await invoke("export_snapshot", { filename: snap.filename, destPath: dest });
+        setSnapshotStatus("Snapshot exported");
+        setTimeout(() => setSnapshotStatus(null), 3000);
+      } catch (e) {
+        setSnapshotStatus("Export error: " + e);
+      }
+    }
+  };
+
+  const handleRestoreSnapshot = async (snap: Snapshot) => {
+    if (!window.confirm("Restore this snapshot? A safety snapshot of the current state will be created first.")) return;
+    try {
+      await invoke("restore_snapshot", { sourcePath: snap.path });
+      setSnapshotStatus("Restored. Reloading...");
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (e) {
+      setSnapshotStatus("Restore error: " + e);
+    }
+  };
+
+  const handleDeleteSnapshot = async (snap: Snapshot) => {
+    if (!window.confirm("Delete this snapshot?")) return;
+    try {
+      await invoke("delete_snapshot", { filename: snap.filename });
+      await loadSnapshots();
+    } catch (e) {
+      setSnapshotStatus("Delete error: " + e);
+    }
+  };
 
   const handleCopy = (name: string, url: string) => {
     navigator.clipboard.writeText(url);
@@ -161,6 +230,55 @@ export default function Settings({
                 </div>
               )}
             </div>
+          )}
+        </div>
+
+        {/* Snapshots */}
+        <div className="settings-section">
+          <h3>Database Snapshots</h3>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <button className="import-btn" onClick={handleCreateSnapshot} style={{ flex: "none" }}>
+              Create Snapshot
+            </button>
+            {snapshotStatus && (
+              <span style={{ fontSize: 12, color: snapshotStatus.startsWith("Error") ? "var(--red)" : "var(--green)" }}>
+                {snapshotStatus}
+              </span>
+            )}
+          </div>
+          {snapshots.length > 0 ? (
+            <div className="snapshot-list">
+              {snapshots.map((snap) => {
+                const date = new Date(snap.created_at * 1000);
+                const dateStr = date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+                const timeStr = date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+                const sizeKb = (snap.size_bytes / 1024).toFixed(0);
+                const sizeMb = (snap.size_bytes / (1024 * 1024)).toFixed(1);
+                const sizeStr = snap.size_bytes > 1024 * 1024 ? `${sizeMb} MB` : `${sizeKb} KB`;
+
+                return (
+                  <div key={snap.filename} className="snapshot-row">
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: "var(--text-primary)" }}>{dateStr} {timeStr}</div>
+                      <div style={{ fontSize: 11, color: "var(--text-faint)" }}>{sizeStr}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button className="snapshot-action" onClick={() => handleExportSnapshot(snap)} title="Download">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 3v12m0 0l-4-4m4 4l4-4" /></svg>
+                      </button>
+                      <button className="snapshot-action" onClick={() => handleRestoreSnapshot(snap)} title="Restore">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12a9 9 0 019-9 9.75 9.75 0 016.74 2.74L21 8M3 3v5h5M21 12a9 9 0 01-9 9 9.75 9.75 0 01-6.74-2.74L3 16m18 5v-5h-5" /></svg>
+                      </button>
+                      <button className="snapshot-action danger" onClick={() => handleDeleteSnapshot(snap)} title="Delete">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p style={{ fontSize: 12, color: "var(--text-faint)", fontStyle: "italic" }}>No snapshots yet</p>
           )}
         </div>
 

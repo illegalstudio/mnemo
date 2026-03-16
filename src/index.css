@@ -1344,3 +1344,43 @@ mark.search-highlight.active {
 }
 
 .settings-textarea:focus { border-color: var(--accent); }
+
+/* Snapshots */
+.snapshot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.snapshot-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.snapshot-action {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  color: var(--text-faint);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+}
+
+.snapshot-action:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.snapshot-action.danger:hover {
+  color: var(--red);
+}

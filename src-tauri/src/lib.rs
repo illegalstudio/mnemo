@@ -1,3 +1,4 @@
+mod backup;
 mod search;
 
 use search::SearchIndex;
@@ -64,6 +65,11 @@ pub fn run() {
             index_chat,
             delete_from_index,
             reindex_all,
+            backup::create_snapshot,
+            backup::list_snapshots,
+            backup::export_snapshot,
+            backup::restore_snapshot,
+            backup::delete_snapshot,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

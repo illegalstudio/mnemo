@@ -13,6 +13,7 @@
     "sql:allow-select",
     "dialog:default",
     "dialog:allow-open",
+    "dialog:allow-save",
     "shell:default",
     {
       "identifier": "shell:allow-open",
