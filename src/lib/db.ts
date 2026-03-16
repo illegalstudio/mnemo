@@ -77,11 +77,16 @@ export async function initDb(): Promise<Database> {
 }
 
 export async function initSearch(): Promise<void> {
+  // Only reindex if Tantivy index is empty (first launch or after reset)
+  const indexCount = await invoke<number>("search_index_count");
+  if (indexCount > 0) return;
+
   const d = await getDb();
   const allChats = await d.select<{ id: string; title: string; summary: string | null; content_md: string }[]>(
     "SELECT id, title, summary, content_md FROM chats"
   );
   if (allChats.length > 0) {
+    console.log(`[search] Reindexing ${allChats.length} chats...`);
     await invoke("reindex_all", {
       chats: allChats.map((c) => ({
         id: c.id,
@@ -90,7 +95,25 @@ export async function initSearch(): Promise<void> {
         contentMd: c.content_md,
       })),
     });
+    console.log("[search] Reindex complete");
   }
+}
+
+export async function rebuildSearchIndex(): Promise<void> {
+  const d = await getDb();
+  const allChats = await d.select<{ id: string; title: string; summary: string | null; content_md: string }[]>(
+    "SELECT id, title, summary, content_md FROM chats"
+  );
+  console.log(`[search] Rebuilding index with ${allChats.length} chats...`);
+  await invoke("reindex_all", {
+    chats: allChats.map((c) => ({
+      id: c.id,
+      title: c.title,
+      summary: c.summary,
+      contentMd: c.content_md,
+    })),
+  });
+  console.log("[search] Rebuild complete");
 }
 
 export async function getDb(): Promise<Database> {

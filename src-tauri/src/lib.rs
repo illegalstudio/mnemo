@@ -53,6 +53,11 @@ fn reindex_all(chats: Vec<ChatData>, state: tauri::State<'_, SearchIndex>) -> Re
     state.reindex_all(&docs).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn search_index_count(state: tauri::State<'_, SearchIndex>) -> Result<u64, String> {
+    Ok(state.doc_count())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -65,6 +70,7 @@ pub fn run() {
             index_chat,
             delete_from_index,
             reindex_all,
+            search_index_count,
             backup::create_snapshot,
             backup::list_snapshots,
             backup::export_snapshot,

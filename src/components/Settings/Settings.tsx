@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open as dialogOpen } from "@tauri-apps/plugin-dialog";
-import { closeDb } from "../../lib/db";
+import { closeDb, rebuildSearchIndex } from "../../lib/db";
 import type { ThemeMode } from "../../hooks/useTheme";
 import type { AnalysisSettings, LangCode } from "../../hooks/useAnalysisSettings";
 import { LANGUAGES } from "../../hooks/useAnalysisSettings";
@@ -96,6 +96,8 @@ export default function Settings({
     try {
       await closeDb();
       await invoke("restore_snapshot", { sourcePath: snap.path });
+      setSnapshotStatus("Restored. Rebuilding index...");
+      await rebuildSearchIndex();
       setSnapshotStatus("Restored. Reloading...");
       setTimeout(() => window.location.reload(), 500);
     } catch (e) {
@@ -125,8 +127,10 @@ export default function Settings({
       const filePath = typeof selected === "string" ? selected : String(selected);
       await closeDb();
       await invoke("restore_snapshot", { sourcePath: filePath });
+      setSnapshotStatus("Restored. Rebuilding index...");
+      await rebuildSearchIndex();
       setSnapshotStatus("Restored. Reloading...");
-      setTimeout(() => window.location.reload(), 1000);
+      setTimeout(() => window.location.reload(), 500);
     } catch (e) {
       console.error("[restore] error:", e);
       setSnapshotStatus("Restore error: " + e);

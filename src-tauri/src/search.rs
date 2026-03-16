@@ -54,6 +54,11 @@ impl SearchIndex {
         })
     }
 
+    pub fn doc_count(&self) -> u64 {
+        let searcher = self.reader.searcher();
+        searcher.num_docs()
+    }
+
     pub fn add_document(
         &self,
         id: &str,
