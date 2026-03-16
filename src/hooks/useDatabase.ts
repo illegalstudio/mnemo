@@ -113,7 +113,9 @@ export function useDatabase() {
 
     setGeneratingMetadata(prev => new Set(prev).add(chat.id));
     try {
-      const metadata = await generateMetadata(content, analysisSettings);
+      const allExistingTags = await db.getAllTags();
+      const tagNames = allExistingTags.map(t => t.slug);
+      const metadata = await generateMetadata(content, analysisSettings, tagNames);
       if (metadata) {
         const updates: Partial<Chat> = {};
         if (metadata.title) updates.title = metadata.title;

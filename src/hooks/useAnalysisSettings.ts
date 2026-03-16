@@ -13,12 +13,8 @@ export interface AnalysisSettings {
 }
 
 const DEFAULT_PROMPT = `You are a metadata extractor for an AI chat archive.
-Given the following AI chat transcript, respond ONLY with valid JSON (no markdown, no explanation) in this exact format:
-{
-  "title": "concise title describing the main topic (max 60 chars)",
-  "summary": "2-3 sentence summary of what was discussed",
-  "tags": ["tag1", "tag2", "tag3"]
-}`;
+Given the following AI chat transcript, respond ONLY with valid JSON (no markdown, no explanation) in this exact format.
+Reuse existing tags as much as possible before creating new ones.`;
 
 const STORAGE_KEY = "mnemo-analysis-settings";
 

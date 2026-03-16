@@ -2,7 +2,7 @@ import { Command } from "@tauri-apps/plugin-shell";
 import type { MetadataResult } from "../types";
 import type { AnalysisSettings } from "../hooks/useAnalysisSettings";
 
-function buildPrompt(settings: AnalysisSettings): string {
+function buildPrompt(settings: AnalysisSettings, existingTags: string[]): string {
   const fields: string[] = [];
   if (settings.fields.title) {
     fields.push(`  "title": "concise title describing the main topic (max 60 chars)"`);
@@ -16,22 +16,27 @@ function buildPrompt(settings: AnalysisSettings): string {
 
   if (fields.length === 0) return "";
 
-  const tagInstruction = settings.fields.tags
-    ? `\nProvide ${settings.tagCount.min}-${settings.tagCount.max} lowercase tags using hyphens not spaces.`
-    : "";
+  let tagInstruction = "";
+  if (settings.fields.tags) {
+    tagInstruction = `\nProvide ${settings.tagCount.min}-${settings.tagCount.max} lowercase tags using hyphens not spaces.`;
+    if (existingTags.length > 0) {
+      tagInstruction += `\nExisting tags: ${existingTags.join(", ")}. Reuse existing tags as much as possible before creating new ones.`;
+    }
+  }
 
   return `${settings.prompt}\n{\n${fields.join(",\n")}\n}${tagInstruction}`;
 }
 
 export async function generateMetadata(
   contentMd: string,
-  settings: AnalysisSettings
+  settings: AnalysisSettings,
+  existingTags: string[] = []
 ): Promise<Partial<MetadataResult> | null> {
   if (!settings.enabled) return null;
   if (!settings.fields.title && !settings.fields.summary && !settings.fields.tags) return null;
 
   try {
-    const prompt = buildPrompt(settings);
+    const prompt = buildPrompt(settings, existingTags);
     if (!prompt) return null;
 
     // Truncate content to avoid exceeding CLI argument limits
