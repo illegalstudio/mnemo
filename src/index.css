@@ -1016,6 +1016,17 @@ html, body, #root {
   font-style: italic;
 }
 
+.mermaid-block {
+  margin: 12px 0;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.mermaid-block svg {
+  max-width: 100%;
+  height: auto;
+}
+
 .md-content hr {
   border: none;
   border-top: 1px solid var(--border);

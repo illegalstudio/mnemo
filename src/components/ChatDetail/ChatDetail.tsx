@@ -8,6 +8,31 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { extractHeadings } from "../../lib/parser";
 import type { Chat, Tag, TagWithCount, Attachment } from "../../types";
+import mermaid from "mermaid";
+
+mermaid.initialize({ startOnLoad: false, theme: "default" });
+
+function MermaidBlock({ code }: { code: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [svg, setSvg] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const id = `mermaid-${Math.random().toString(36).slice(2, 10)}`;
+    mermaid.render(id, code).then(
+      ({ svg: renderedSvg }) => { if (!cancelled) setSvg(renderedSvg); },
+      (err) => { if (!cancelled) setError(String(err)); }
+    );
+    return () => { cancelled = true; };
+  }, [code]);
+
+  if (error) {
+    return <pre style={{ color: "var(--red)", fontSize: 12 }}>{error}</pre>;
+  }
+
+  return <div ref={ref} className="mermaid-block" dangerouslySetInnerHTML={{ __html: svg }} />;
+}
 
 const MemoizedMarkdown = memo(function MemoizedMarkdown({ content, contentRef }: { content: string; contentRef: React.RefObject<HTMLDivElement | null> }) {
   return (
@@ -27,6 +52,22 @@ const MemoizedMarkdown = memo(function MemoizedMarkdown({ content, contentRef }:
             }}>{children}</a>;
           }
           return <a {...props} href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
+        },
+        code: ({ className, children, ...props }) => {
+          const match = /language-(\w+)/.exec(className || "");
+          if (match && match[1] === "mermaid") {
+            return <MermaidBlock code={String(children).trim()} />;
+          }
+          return <code className={className} {...props}>{children}</code>;
+        },
+        pre: ({ children, ...props }) => {
+          // Check if the child is a mermaid code block — if so, render without <pre> wrapper
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const child = children as any;
+          if (child?.props?.className?.includes("language-mermaid")) {
+            return <>{children}</>;
+          }
+          return <pre {...props}>{children}</pre>;
         },
       }}
     >
