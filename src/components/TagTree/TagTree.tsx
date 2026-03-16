@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Tag, TagWithCount } from "../../types";
 
 interface TagTreeProps {
@@ -28,6 +28,9 @@ function buildTree(tags: TagWithCount[]): TagWithCount[] {
 export function TagTree({ tags, selectedTagIds, onToggle, onSelect, onCreateTag, onUpdateTag, onDeleteTag }: TagTreeProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; tagId: string } | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const renameRef = useRef<HTMLInputElement>(null);
 
   const tree = buildTree(tags);
 
@@ -41,47 +44,62 @@ export function TagTree({ tags, selectedTagIds, onToggle, onSelect, onCreateTag,
 
   useEffect(() => {
     if (!contextMenu) return;
-    const close = () => setContextMenu(null);
+    const close = () => { setContextMenu(null); setConfirmDeleteId(null); };
     document.addEventListener("click", close);
     return () => document.removeEventListener("click", close);
   }, [contextMenu]);
 
+  useEffect(() => {
+    if (renamingId) renameRef.current?.focus();
+  }, [renamingId]);
+
   function handleAction(action: string, tagId: string) {
     const tag = tags.find((t) => t.id === tagId);
     if (action === "rename") {
-      const name = window.prompt("Rename tag:", tag?.name || "");
-      if (name?.trim()) onUpdateTag(tagId, { name: name.trim() });
+      setRenamingId(tagId);
+      setContextMenu(null);
     } else if (action === "color") {
-      const color = window.prompt("Hex color:", tag?.color || "#88C0D0");
-      if (color?.trim()) onUpdateTag(tagId, { color: color.trim() });
+      // Cycle through preset colors
+      const colors = ["#88C0D0", "#81A1C1", "#5E81AC", "#BF616A", "#D08770", "#EBCB8B", "#A3BE8C", "#B48EAD"];
+      const currentIdx = colors.indexOf(tag?.color || "");
+      const nextColor = colors[(currentIdx + 1) % colors.length];
+      onUpdateTag(tagId, { color: nextColor });
+      setContextMenu(null);
     } else if (action === "child") {
-      const name = window.prompt("Child tag name:");
-      if (name?.trim()) onCreateTag(name.trim(), tagId);
+      onCreateTag("New Tag", tagId);
+      setExpandedIds((prev) => new Set(prev).add(tagId));
+      setContextMenu(null);
     } else if (action === "delete") {
-      // If the tag is part of a multi-selection, delete all selected
-      if (selectedTagIds.has(tagId) && selectedTagIds.size > 1) {
-        const selectedNames = tags.filter(t => selectedTagIds.has(t.id)).map(t => t.name).join(", ");
-        if (window.confirm(`Delete ${selectedTagIds.size} tags: ${selectedNames}?`)) {
+      if (confirmDeleteId === tagId) {
+        if (selectedTagIds.has(tagId) && selectedTagIds.size > 1) {
           for (const id of selectedTagIds) {
             onDeleteTag(id);
           }
+        } else {
+          onDeleteTag(tagId);
         }
+        setConfirmDeleteId(null);
+        setContextMenu(null);
       } else {
-        if (window.confirm(`Delete tag "${tag?.name}"?`)) onDeleteTag(tagId);
+        setConfirmDeleteId(tagId);
+        return; // keep menu open
       }
+    } else {
+      setContextMenu(null);
     }
-    setContextMenu(null);
   }
 
   function renderTag(tag: TagWithCount): React.ReactNode {
     const expanded = expandedIds.has(tag.id);
     const hasChildren = (tag.children?.length ?? 0) > 0;
+    const isRenaming = renamingId === tag.id;
 
     return (
       <div key={tag.id}>
         <div
           className={`tag-tree-node ${selectedTagIds.has(tag.id) ? "active" : ""}`}
           onClick={(e) => {
+            if (isRenaming) return;
             if (e.metaKey || e.ctrlKey) {
               onToggle(tag.id);
             } else {
@@ -99,8 +117,33 @@ export function TagTree({ tags, selectedTagIds, onToggle, onSelect, onCreateTag,
             <span style={{ width: 12 }} />
           )}
           <span className="dot" style={{ backgroundColor: tag.color || "#88C0D0" }} />
-          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tag.name}</span>
-          {tag.chat_count > 0 && <span className="folder-badge">{tag.chat_count}</span>}
+          {isRenaming ? (
+            <input
+              ref={renameRef}
+              className="inline-create-input"
+              defaultValue={tag.name}
+              autoComplete="off" autoCorrect="off" spellCheck={false}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const val = (e.target as HTMLInputElement).value.trim();
+                  if (val) onUpdateTag(tag.id, { name: val });
+                  setRenamingId(null);
+                } else if (e.key === "Escape") {
+                  setRenamingId(null);
+                }
+              }}
+              onBlur={(e) => {
+                const val = e.target.value.trim();
+                if (val && val !== tag.name) onUpdateTag(tag.id, { name: val });
+                setRenamingId(null);
+              }}
+              style={{ flex: 1, minWidth: 0 }}
+            />
+          ) : (
+            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tag.name}</span>
+          )}
+          {tag.chat_count > 0 && !isRenaming && <span className="folder-badge">{tag.chat_count}</span>}
         </div>
         {expanded && hasChildren && (
           <div className="tag-tree-children">
@@ -109,6 +152,14 @@ export function TagTree({ tags, selectedTagIds, onToggle, onSelect, onCreateTag,
         )}
       </div>
     );
+  }
+
+  function getDeleteLabel(): string {
+    if (contextMenu && selectedTagIds.has(contextMenu.tagId) && selectedTagIds.size > 1) {
+      const prefix = confirmDeleteId === contextMenu.tagId ? "Confirm delete" : "Delete";
+      return `${prefix} ${selectedTagIds.size} tags`;
+    }
+    return confirmDeleteId === contextMenu?.tagId ? "Confirm delete" : "Delete";
   }
 
   return (
@@ -120,10 +171,8 @@ export function TagTree({ tags, selectedTagIds, onToggle, onSelect, onCreateTag,
           <button onClick={() => handleAction("color", contextMenu.tagId)}>Change Color</button>
           <button onClick={() => handleAction("child", contextMenu.tagId)}>Create Child</button>
           <div className="divider" />
-          <button className="danger" onClick={() => handleAction("delete", contextMenu.tagId)}>
-            {selectedTagIds.has(contextMenu.tagId) && selectedTagIds.size > 1
-              ? `Delete ${selectedTagIds.size} tags`
-              : "Delete"}
+          <button className="danger" onClick={(e) => { e.stopPropagation(); handleAction("delete", contextMenu.tagId); }}>
+            {getDeleteLabel()}
           </button>
         </div>
       )}

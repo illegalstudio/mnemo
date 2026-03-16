@@ -42,6 +42,7 @@ export function FolderTree({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; folderId: string } | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const renameRef = useRef<HTMLInputElement>(null);
 
   const tree = buildTree(folders);
@@ -56,7 +57,7 @@ export function FolderTree({
 
   useEffect(() => {
     if (!contextMenu) return;
-    const close = () => setContextMenu(null);
+    const close = () => { setContextMenu(null); setConfirmDeleteId(null); };
     document.addEventListener("click", close);
     return () => document.removeEventListener("click", close);
   }, [contextMenu]);
@@ -72,7 +73,13 @@ export function FolderTree({
       onCreateFolder("New Folder", folderId);
       setExpandedIds((prev) => new Set(prev).add(folderId));
     } else if (action === "delete") {
-      onDeleteFolder(folderId);
+      if (confirmDeleteId === folderId) {
+        onDeleteFolder(folderId);
+        setConfirmDeleteId(null);
+      } else {
+        setConfirmDeleteId(folderId);
+        return; // keep context menu open
+      }
     } else if (action === "unfile") {
       onMoveFolderToParent(folderId, null);
     }
@@ -276,7 +283,9 @@ export function FolderTree({
             <button onClick={() => handleAction("unfile", contextMenu.folderId)}>Move to Root</button>
           )}
           <div className="divider" />
-          <button className="danger" onClick={() => handleAction("delete", contextMenu.folderId)}>Delete</button>
+          <button className="danger" onClick={(e) => { e.stopPropagation(); handleAction("delete", contextMenu.folderId); }}>
+            {confirmDeleteId === contextMenu.folderId ? "Confirm delete" : "Delete"}
+          </button>
         </div>
       )}
     </>
