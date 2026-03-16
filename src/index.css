@@ -1156,8 +1156,13 @@ mark.search-highlight.active {
 .settings-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 0 24px 24px;
+  padding: 24px;
+}
+
+.settings-scroll > .settings-section {
   max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .settings-section {
