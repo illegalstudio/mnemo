@@ -404,6 +404,33 @@ html, body, #root {
   padding-left: 14px;
 }
 
+.chat-card.multi-selected {
+  background: var(--accent-subtle);
+  border-left: 2px solid var(--accent);
+  padding-left: 14px;
+}
+
+.multi-delete-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--red);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.multi-delete-btn:hover {
+  background: var(--red);
+  color: white;
+}
+
 .chat-card-title {
   font-size: 13px;
   font-weight: 500;

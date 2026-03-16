@@ -1,4 +1,4 @@
-import { useState, useMemo, type DragEvent } from "react";
+import { useState, useMemo, useCallback, useEffect, type DragEvent } from "react";
 import type { Chat } from "../../types";
 
 interface ChatListProps {
@@ -11,10 +11,20 @@ interface ChatListProps {
 }
 
 export default function ChatList({
-  chats, selectedChatId, generatingMetadata, onSelectChat, onImport, onDeleteChat: _onDeleteChat,
+  chats, selectedChatId, generatingMetadata, onSelectChat, onImport, onDeleteChat,
 }: ChatListProps) {
   const [sortBy, setSortBy] = useState<"imported_at" | "chat_date" | "title">("imported_at");
   const [isDragging, setIsDragging] = useState(false);
+  const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
+
+  // Clear multi-selection when chats change
+  useEffect(() => {
+    setMultiSelected((prev) => {
+      const chatIds = new Set(chats.map((c) => c.id));
+      const next = new Set([...prev].filter((id) => chatIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [chats]);
 
   const sortedChats = useMemo(() => {
     return [...chats].sort((a, b) => {
@@ -28,6 +38,48 @@ export default function ChatList({
       return b.imported_at.localeCompare(a.imported_at);
     });
   }, [chats, sortBy]);
+
+  const handleChatClick = useCallback((chat: Chat, e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey) {
+      // Cmd+click: toggle multi-selection
+      setMultiSelected((prev) => {
+        const next = new Set(prev);
+        if (next.has(chat.id)) {
+          next.delete(chat.id);
+        } else {
+          next.add(chat.id);
+        }
+        return next;
+      });
+    } else {
+      // Normal click: select single, clear multi
+      setMultiSelected(new Set());
+      onSelectChat(chat);
+    }
+  }, [onSelectChat]);
+
+  const handleDeleteSelected = useCallback(async () => {
+    if (multiSelected.size === 0) return;
+    if (!window.confirm(`Delete ${multiSelected.size} selected chat${multiSelected.size > 1 ? "s" : ""}?`)) return;
+    for (const id of multiSelected) {
+      await onDeleteChat(id);
+    }
+    setMultiSelected(new Set());
+  }, [multiSelected, onDeleteChat]);
+
+  // Keyboard: Backspace/Delete to delete selected
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (multiSelected.size > 0 && (e.key === "Backspace" || e.key === "Delete")) {
+        const target = e.target as HTMLElement;
+        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+        e.preventDefault();
+        handleDeleteSelected();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [multiSelected, handleDeleteSelected]);
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = () => setIsDragging(false);
@@ -59,7 +111,19 @@ export default function ChatList({
           <option value="chat_date">Chat Date</option>
           <option value="title">Title</option>
         </select>
-        <span className="chat-count">{chats.length} {chats.length === 1 ? "chat" : "chats"}</span>
+        {multiSelected.size > 0 ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="chat-count">{multiSelected.size} selected</span>
+            <button className="multi-delete-btn" onClick={handleDeleteSelected} title="Delete selected">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete
+            </button>
+          </div>
+        ) : (
+          <span className="chat-count">{chats.length} {chats.length === 1 ? "chat" : "chats"}</span>
+        )}
       </div>
 
       <div className="chat-list" onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}>
@@ -78,15 +142,16 @@ export default function ChatList({
         ) : (
           <div style={{ opacity: isDragging ? 0.4 : 1, transition: "opacity 0.2s" }}>
             {sortedChats.map((chat) => {
-              const isSelected = chat.id === selectedChatId;
+              const isSelected = chat.id === selectedChatId && multiSelected.size === 0;
+              const isMultiSelected = multiSelected.has(chat.id);
               const isGenerating = generatingMetadata.has(chat.id);
               const dateStr = new Date(chat.imported_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
               return (
                 <button
                   key={chat.id}
-                  className={`chat-card ${isSelected ? "selected" : ""}`}
-                  onClick={() => onSelectChat(chat)}
+                  className={`chat-card ${isSelected ? "selected" : ""} ${isMultiSelected ? "multi-selected" : ""}`}
+                  onClick={(e) => handleChatClick(chat, e)}
                 >
                   <div className="chat-card-title">{chat.title}</div>
                   {chat.summary && <div className="chat-card-summary">{chat.summary}</div>}
