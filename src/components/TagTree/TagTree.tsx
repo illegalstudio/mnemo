@@ -100,7 +100,7 @@ export function TagTree({ tags, selectedTagIds, onToggle, onSelect, onCreateTag,
           )}
           <span className="dot" style={{ backgroundColor: tag.color || "#88C0D0" }} />
           <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tag.name}</span>
-          {tag.chat_count > 0 && <span className="count">{tag.chat_count}</span>}
+          {tag.chat_count > 0 && <span className="folder-badge">{tag.chat_count}</span>}
         </div>
         {expanded && hasChildren && (
           <div className="tag-tree-children">

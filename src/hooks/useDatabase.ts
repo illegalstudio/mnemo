@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { Chat, Tag, TagWithCount, Attachment, Source } from '../types';
+import type { Chat, Tag, TagWithCount, FolderWithCount, Attachment, Source } from '../types';
 import * as db from '../lib/db';
 import { parseImportFile } from '../lib/parser';
 import { generateMetadata } from '../lib/metadata';
@@ -15,6 +15,9 @@ export function useDatabase() {
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
   const [selectedSource, setSelectedSource] = useState<Source | null>(null);
   const [recentChats, setRecentChats] = useState<Chat[]>([]);
+  const [folders, setFolders] = useState<FolderWithCount[]>([]);
+  const [unfiledCount, setUnfiledCount] = useState(0);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [generatingMetadata, setGeneratingMetadata] = useState<Set<string>>(new Set());
   const initialized = useRef(false);
@@ -27,6 +30,7 @@ export function useDatabase() {
       await db.initSearch();
       await refreshChats();
       await refreshTags();
+      await refreshFolders();
       setLoading(false);
     })();
   }, []);
@@ -40,6 +44,15 @@ export function useDatabase() {
       result = await db.getAllChats();
     }
 
+    // Filter by folder (including subfolders via recursive CTE)
+    if (selectedFolderId === "__unfiled__") {
+      result = result.filter(c => !c.folder_id);
+    } else if (selectedFolderId) {
+      const folderChats = await db.getChatsByFolder(selectedFolderId);
+      const folderChatIds = new Set(folderChats.map(c => c.id));
+      result = result.filter(c => folderChatIds.has(c.id));
+    }
+
     // Filter by source
     if (selectedSource) {
       result = result.filter(c => c.source === selectedSource);
@@ -51,11 +64,9 @@ export function useDatabase() {
       for (const chat of result) {
         const chatTags = await db.getTagsForChat(chat.id);
         const chatTagIds = new Set(chatTags.map(t => t.id));
-        // Also include chats tagged with child tags (check via getChatsByTag)
         let hasAll = true;
         for (const tagId of selectedTagIds) {
           if (!chatTagIds.has(tagId)) {
-            // Check if chat has any descendant of this tag
             const chatsForTag = await db.getChatsByTag(tagId);
             if (!chatsForTag.some(c => c.id === chat.id)) {
               hasAll = false;
@@ -71,11 +82,20 @@ export function useDatabase() {
     setChats(result);
     const recent = await db.getRecentChats(5);
     setRecentChats(recent);
-  }, [searchQuery, selectedTagIds, selectedSource]);
+  }, [searchQuery, selectedTagIds, selectedSource, selectedFolderId]);
 
   const refreshTags = useCallback(async () => {
     const result = await db.getAllTags();
     setTags(result);
+  }, []);
+
+  const refreshFolders = useCallback(async () => {
+    const [result, unfiled] = await Promise.all([
+      db.getAllFolders(),
+      db.getUnfiledChatCount(),
+    ]);
+    setFolders(result);
+    setUnfiledCount(unfiled);
   }, []);
 
   useEffect(() => {
@@ -263,6 +283,40 @@ export function useDatabase() {
     setSelectedSource(source);
   }, []);
 
+  const createFolder = useCallback(async (name: string, parentId?: string, color?: string) => {
+    const folder = await db.insertFolder(name, parentId, color);
+    await refreshFolders();
+    return folder;
+  }, [refreshFolders]);
+
+  const renameFolder = useCallback(async (id: string, name: string) => {
+    await db.updateFolder(id, { name });
+    await refreshFolders();
+  }, [refreshFolders]);
+
+  const deleteFolderCb = useCallback(async (id: string) => {
+    await db.deleteFolder(id);
+    if (selectedFolderId === id) setSelectedFolderId(null);
+    await refreshFolders();
+    await refreshChats();
+  }, [refreshFolders, refreshChats, selectedFolderId]);
+
+  const moveChatToFolder = useCallback(async (chatId: string, folderId: string | null) => {
+    await db.moveChatToFolder(chatId, folderId);
+    await refreshChats();
+    await refreshFolders();
+  }, [refreshChats, refreshFolders]);
+
+  const moveFolderToParent = useCallback(async (folderId: string, newParentId: string | null) => {
+    const ok = await db.moveFolderToParent(folderId, newParentId);
+    if (ok) await refreshFolders();
+    return ok;
+  }, [refreshFolders]);
+
+  const selectFolder = useCallback((folderId: string | null) => {
+    setSelectedFolderId(folderId);
+  }, []);
+
   const search = useCallback((query: string) => {
     setSearchQuery(query);
   }, []);
@@ -271,12 +325,15 @@ export function useDatabase() {
     chats,
     recentChats,
     tags,
+    folders,
+    unfiledCount,
     selectedChat,
     selectedChatTags,
     selectedChatAttachments,
     searchQuery,
     selectedTagIds,
     selectedSource,
+    selectedFolderId,
     loading,
     generatingMetadata,
     setSelectedChat,
@@ -297,5 +354,11 @@ export function useDatabase() {
     search,
     refreshChats,
     refreshTags,
+    createFolder,
+    renameFolder,
+    deleteFolder: deleteFolderCb,
+    moveChatToFolder,
+    moveFolderToParent,
+    selectFolder,
   };
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { isMnemoHtmlPaste, convertHtmlToMarkdown, reparseHtml } from "./lib/html-parser";
@@ -53,12 +53,13 @@ function ResizeHandle({ onResize, onResizeStart, onResizeEnd }: {
 
 export default function App() {
   const {
-    chats, recentChats, tags, selectedChat, selectedChatTags, selectedChatAttachments,
-    searchQuery, selectedTagIds, selectedSource, loading, generatingMetadata,
+    chats, recentChats, tags, folders, unfiledCount, selectedChat, selectedChatTags, selectedChatAttachments,
+    searchQuery, selectedTagIds, selectedSource, selectedFolderId, loading, generatingMetadata,
     setSelectedChat, importFile, updateChat, deleteChat,
     createTag, updateTag, deleteTag,
     addTagToChat, removeTagFromChat, addAttachment, removeAttachment,
     toggleTag, selectTag, clearTags, selectSource, search,
+    createFolder, renameFolder, deleteFolder: deleteFolderCb, moveChatToFolder, moveFolderToParent, selectFolder,
   } = useDatabase();
 
   const { mode: themeMode, setThemeMode } = useTheme();
@@ -67,6 +68,8 @@ export default function App() {
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [chatListWidth, setChatListWidth] = useState(260);
   const [isResizing, setIsResizing] = useState(false);
+
+  const folderMap = useMemo(() => new Map((folders ?? []).map(f => [f.id, f.name])), [folders]);
 
   const handleResizeStart = useCallback(() => setIsResizing(true), []);
   const handleResizeEnd = useCallback(() => setIsResizing(false), []);
@@ -181,11 +184,15 @@ export default function App() {
       <div className="app-layout">
         <div className="sidebar" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
           <Sidebar
-            tags={tags} selectedTagIds={selectedTagIds} selectedSource={selectedSource}
-            searchQuery={searchQuery} recentChats={recentChats}
+            tags={tags} folders={folders} unfiledCount={unfiledCount} selectedTagIds={selectedTagIds} selectedSource={selectedSource}
+            selectedFolderId={selectedFolderId} searchQuery={searchQuery} recentChats={recentChats}
             onSearch={search} onToggleTag={toggleTag} onSelectTag={selectTag} onClearTags={clearTags} onSelectSource={selectSource}
             onSelectChat={setSelectedChat} onCreateTag={createTag}
             onUpdateTag={updateTag} onDeleteTag={deleteTag}
+            onSelectFolder={selectFolder} onCreateFolder={createFolder}
+            onRenameFolder={renameFolder} onDeleteFolder={deleteFolderCb}
+            onMoveChatToFolder={moveChatToFolder}
+            onMoveFolderToParent={moveFolderToParent}
             onOpenSettings={() => setShowSettings(true)}
             onImportClick={handleFileOpen}
           />
@@ -210,6 +217,7 @@ export default function App() {
               <ChatList
                 chats={chats} selectedChatId={selectedChat?.id ?? null}
                 generatingMetadata={generatingMetadata}
+                folderMap={folderMap}
                 onSelectChat={setSelectedChat} onImport={handleImport}
                 onDeleteChat={deleteChat}
               />

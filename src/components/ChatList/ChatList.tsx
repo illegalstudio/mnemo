@@ -1,17 +1,19 @@
 import { useState, useMemo, useCallback, useEffect, type DragEvent } from "react";
 import type { Chat } from "../../types";
+import { setDragPayload, clearDragPayload } from "../../lib/drag-state";
 
 interface ChatListProps {
   chats: Chat[];
   selectedChatId: string | null;
   generatingMetadata: Set<string>;
+  folderMap: Map<string, string>;
   onSelectChat: (chat: Chat) => void;
   onImport: (files: { name: string; content: string }[]) => void;
   onDeleteChat: (id: string) => void;
 }
 
 export default function ChatList({
-  chats, selectedChatId, generatingMetadata, onSelectChat, onImport, onDeleteChat,
+  chats, selectedChatId, generatingMetadata, folderMap, onSelectChat, onImport, onDeleteChat,
 }: ChatListProps) {
   const [sortBy, setSortBy] = useState<"imported_at" | "chat_date" | "title">("imported_at");
   const [isDragging, setIsDragging] = useState(false);
@@ -151,12 +153,27 @@ export default function ChatList({
                 <button
                   key={chat.id}
                   className={`chat-card ${isSelected ? "selected" : ""} ${isMultiSelected ? "multi-selected" : ""}`}
+                  draggable
+                  onDragStart={(e) => {
+                    setDragPayload({ type: "chat", chatId: chat.id });
+                    e.dataTransfer.effectAllowed = "move";
+                    // Need to set some data for drag to work
+                    e.dataTransfer.setData("text/plain", chat.id);
+                    (e.currentTarget as HTMLElement).classList.add("dragging");
+                  }}
+                  onDragEnd={(e) => {
+                    clearDragPayload();
+                    (e.currentTarget as HTMLElement).classList.remove("dragging");
+                  }}
                   onClick={(e) => handleChatClick(chat, e)}
                 >
                   <div className="chat-card-title">{chat.title}</div>
                   {chat.summary && <div className="chat-card-summary">{chat.summary}</div>}
                   <div className="chat-card-meta">
                     <span className={`source-badge ${chat.source}`}>{chat.source}</span>
+                    {chat.folder_id && folderMap.get(chat.folder_id) && (
+                      <span className="source-badge folder">{folderMap.get(chat.folder_id)}</span>
+                    )}
                     <span className="chat-card-date">{dateStr}</span>
                     {isGenerating && <span className="chat-card-generating">analyzing...</span>}
                   </div>

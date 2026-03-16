@@ -6,6 +6,8 @@ import type {
   Tag,
   TagWithCount,
   Attachment,
+  Folder,
+  FolderWithCount,
 } from "../types";
 
 let db: Database | null = null;
@@ -62,12 +64,29 @@ export async function initDb(): Promise<Database> {
     )
   `);
 
+  await instance.execute(`
+    CREATE TABLE IF NOT EXISTS folders (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      parent_id TEXT,
+      color TEXT,
+      position INTEGER DEFAULT 0
+    )
+  `);
+
   // Migration: drop old FTS5 table
   await instance.execute("DROP TABLE IF EXISTS chats_fts");
 
   // Migration: add content_html column if missing
   try {
     await instance.execute("ALTER TABLE chats ADD COLUMN content_html TEXT");
+  } catch {
+    // Column already exists
+  }
+
+  // Migration: add folder_id column if missing
+  try {
+    await instance.execute("ALTER TABLE chats ADD COLUMN folder_id TEXT");
   } catch {
     // Column already exists
   }
@@ -357,5 +376,135 @@ export async function setSetting(key: string, value: string): Promise<void> {
   await d.execute(
     "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
     [key, value]
+  );
+}
+
+// ---- Folders ----
+
+export async function getAllFolders(): Promise<FolderWithCount[]> {
+  const d = await getDb();
+  // Get all folders first
+  const allFolders = await d.select<Folder[]>(
+    "SELECT * FROM folders ORDER BY position, name"
+  );
+  // Get chat counts per folder (direct only)
+  const directCounts = await d.select<{ folder_id: string; cnt: number }[]>(
+    "SELECT folder_id, COUNT(*) as cnt FROM chats WHERE folder_id IS NOT NULL GROUP BY folder_id"
+  );
+  const directMap = new Map(directCounts.map(r => [r.folder_id, r.cnt]));
+
+  // Build parent->children map
+  const childrenMap = new Map<string, string[]>();
+  for (const f of allFolders) {
+    if (f.parent_id) {
+      const siblings = childrenMap.get(f.parent_id) || [];
+      siblings.push(f.id);
+      childrenMap.set(f.parent_id, siblings);
+    }
+  }
+
+  // Recursive count: sum of direct + all descendants
+  function totalCount(id: string): number {
+    let sum = directMap.get(id) || 0;
+    for (const childId of childrenMap.get(id) || []) {
+      sum += totalCount(childId);
+    }
+    return sum;
+  }
+
+  return allFolders.map(f => {
+    const direct = directMap.get(f.id) || 0;
+    const total = totalCount(f.id);
+    return {
+      ...f,
+      chat_count: total,
+      nested_chat_count: total - direct,
+    };
+  });
+}
+
+export async function getUnfiledChatCount(): Promise<number> {
+  const d = await getDb();
+  const rows = await d.select<{ cnt: number }[]>(
+    "SELECT COUNT(*) as cnt FROM chats WHERE folder_id IS NULL"
+  );
+  return rows[0]?.cnt ?? 0;
+}
+
+export async function insertFolder(name: string, parentId?: string, color?: string): Promise<Folder> {
+  const d = await getDb();
+  const id = uuidv4();
+  const maxPos = await d.select<{ mp: number | null }[]>(
+    "SELECT MAX(position) as mp FROM folders WHERE parent_id IS ?"
+    , [parentId ?? null]);
+  const position = (maxPos[0]?.mp ?? -1) + 1;
+
+  await d.execute(
+    "INSERT INTO folders (id, name, parent_id, color, position) VALUES (?, ?, ?, ?, ?)",
+    [id, name, parentId ?? null, color ?? null, position]
+  );
+  return { id, name, parent_id: parentId ?? null, color: color ?? null, position };
+}
+
+export async function updateFolder(id: string, updates: Partial<Folder>): Promise<void> {
+  const d = await getDb();
+  const fields = Object.keys(updates).filter((k) => k !== "id");
+  if (fields.length === 0) return;
+  const setClauses = fields.map((f) => `${f} = ?`).join(", ");
+  const values = fields.map((f) => updates[f as keyof Folder] ?? null);
+  await d.execute(`UPDATE folders SET ${setClauses} WHERE id = ?`, [...values, id]);
+}
+
+export async function deleteFolder(id: string): Promise<void> {
+  const d = await getDb();
+  // Move chats in this folder to unfiled
+  await d.execute("UPDATE chats SET folder_id = NULL WHERE folder_id = ?", [id]);
+  // Get children and delete them recursively
+  const children = await d.select<{ id: string }[]>("SELECT id FROM folders WHERE parent_id = ?", [id]);
+  for (const child of children) {
+    await deleteFolder(child.id);
+  }
+  await d.execute("DELETE FROM folders WHERE id = ?", [id]);
+}
+
+export async function moveChatToFolder(chatId: string, folderId: string | null): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE chats SET folder_id = ? WHERE id = ?", [folderId, chatId]);
+}
+
+export async function moveFolderToParent(folderId: string, newParentId: string | null): Promise<boolean> {
+  // Prevent circular nesting: newParentId cannot be folderId itself or any descendant of folderId
+  if (newParentId === folderId) return false;
+  if (newParentId) {
+    const d = await getDb();
+    const descendants = await d.select<{ id: string }[]>(
+      `WITH RECURSIVE folder_tree AS (
+         SELECT id FROM folders WHERE id = ?
+         UNION ALL
+         SELECT f.id FROM folders f
+         JOIN folder_tree ft ON f.parent_id = ft.id
+       )
+       SELECT id FROM folder_tree`,
+      [folderId]
+    );
+    if (descendants.some((d) => d.id === newParentId)) return false;
+  }
+  await updateFolder(folderId, { parent_id: newParentId } as Partial<Folder>);
+  return true;
+}
+
+export async function getChatsByFolder(folderId: string): Promise<Chat[]> {
+  const d = await getDb();
+  return d.select<Chat[]>(
+    `WITH RECURSIVE folder_tree AS (
+       SELECT id FROM folders WHERE id = ?
+       UNION ALL
+       SELECT f.id FROM folders f
+       JOIN folder_tree ft ON f.parent_id = ft.id
+     )
+     SELECT c.* FROM chats c
+     JOIN folder_tree ft ON c.folder_id = ft.id
+     ORDER BY c.imported_at DESC`,
+    [folderId]
   );
 }

@@ -7,6 +7,7 @@ export interface Chat {
   content_html: string | null;
   imported_at: string;
   chat_date: string | null;
+  folder_id: string | null;
 }
 
 export interface Tag {
@@ -48,4 +49,18 @@ export interface HeadingEntry {
   level: number;
   text: string;
   id: string;
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  color: string | null;
+  position: number;
+}
+
+export interface FolderWithCount extends Folder {
+  chat_count: number;
+  nested_chat_count: number;
+  children?: FolderWithCount[];
 }

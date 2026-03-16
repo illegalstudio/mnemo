@@ -1,12 +1,16 @@
-import { useState, useEffect } from "react";
-import type { Chat, Source, Tag, TagWithCount } from "../../types";
+import { useState, useEffect, useRef } from "react";
+import type { Chat, Source, Tag, TagWithCount, FolderWithCount } from "../../types";
 import { TagTree } from "../TagTree/TagTree";
+import { FolderTree } from "../FolderTree/FolderTree";
 import { useDebounce } from "../../hooks/useDebounce";
 
 interface SidebarProps {
   tags: TagWithCount[];
+  folders: FolderWithCount[];
+  unfiledCount: number;
   selectedTagIds: Set<string>;
   selectedSource: Source | null;
+  selectedFolderId: string | null;
   searchQuery: string;
   recentChats: Chat[];
   onSearch: (query: string) => void;
@@ -18,6 +22,12 @@ interface SidebarProps {
   onCreateTag: (name: string, parentId?: string, color?: string) => void;
   onUpdateTag: (id: string, updates: Partial<Tag>) => void;
   onDeleteTag: (id: string) => void;
+  onSelectFolder: (folderId: string | null) => void;
+  onCreateFolder: (name: string, parentId?: string, color?: string) => void;
+  onRenameFolder: (id: string, name: string) => void;
+  onDeleteFolder: (id: string) => void;
+  onMoveChatToFolder: (chatId: string, folderId: string | null) => void;
+  onMoveFolderToParent: (folderId: string, newParentId: string | null) => Promise<boolean>;
   onOpenSettings: () => void;
   onImportClick: () => void;
 }
@@ -39,22 +49,72 @@ const sourceColors: Record<string, string> = {
 
 const tagColors = ["#88C0D0", "#81A1C1", "#5E81AC", "#BF616A", "#D08770", "#EBCB8B", "#A3BE8C", "#B48EAD"];
 
+const COLLAPSED_KEY = "mnemo-sidebar-collapsed";
+
+function loadCollapsed(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(COLLAPSED_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg className={`section-chevron ${expanded ? "expanded" : ""}`} width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
+      <path d="M6 4l8 6-8 6V4z" />
+    </svg>
+  );
+}
+
+function InlineInput({ onSubmit, onCancel, placeholder }: { onSubmit: (value: string) => void; onCancel: () => void; placeholder: string }) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+  return (
+    <input
+      ref={ref}
+      className="inline-create-input"
+      placeholder={placeholder}
+      autoComplete="off" autoCorrect="off" spellCheck={false}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          const val = (e.target as HTMLInputElement).value.trim();
+          if (val) onSubmit(val);
+          onCancel();
+        } else if (e.key === "Escape") {
+          onCancel();
+        }
+      }}
+      onBlur={(e) => {
+        const val = e.target.value.trim();
+        if (val) onSubmit(val);
+        onCancel();
+      }}
+    />
+  );
+}
+
 export function Sidebar({
-  tags, selectedTagIds, selectedSource, searchQuery, recentChats,
+  tags, folders, unfiledCount, selectedTagIds, selectedSource, selectedFolderId, searchQuery, recentChats,
   onSearch, onToggleTag, onSelectTag, onClearTags, onSelectSource, onSelectChat,
-  onCreateTag, onUpdateTag, onDeleteTag, onOpenSettings, onImportClick,
+  onCreateTag, onUpdateTag, onDeleteTag,
+  onSelectFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onMoveChatToFolder, onMoveFolderToParent,
+  onOpenSettings, onImportClick,
 }: SidebarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const debouncedSearch = useDebounce(localSearch, 300);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
+  const [creatingTag, setCreatingTag] = useState(false);
+  const [creatingFolder, setCreatingFolder] = useState(false);
 
   useEffect(() => { onSearch(debouncedSearch); }, [debouncedSearch, onSearch]);
 
-  function handleCreateTag() {
-    const name = window.prompt("Tag name:");
-    if (name?.trim()) {
-      const color = tagColors[Math.floor(Math.random() * tagColors.length)];
-      onCreateTag(name.trim(), undefined, color);
-    }
+  useEffect(() => {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsed));
+  }, [collapsed]);
+
+  function toggleSection(key: string) {
+    setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
   return (
@@ -108,26 +168,88 @@ export function Sidebar({
       </div>
 
       <div className="sidebar-scroll">
+        {/* Folders */}
+        <div className="sidebar-section">
+          <div className="sidebar-section-title" onClick={() => toggleSection("folders")} style={{ cursor: "pointer" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <ChevronIcon expanded={!collapsed.folders} />
+              Folders
+            </span>
+            <button onClick={(e) => { e.stopPropagation(); setCreatingFolder(true); }} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0 }} title="New folder">+</button>
+          </div>
+          {!collapsed.folders && (
+            <>
+              {creatingFolder && (
+                <div style={{ padding: "2px 8px" }}>
+                  <InlineInput
+                    placeholder="Folder name..."
+                    onSubmit={(name) => onCreateFolder(name)}
+                    onCancel={() => setCreatingFolder(false)}
+                  />
+                </div>
+              )}
+              <FolderTree
+                folders={folders ?? []}
+                unfiledCount={unfiledCount}
+                selectedFolderId={selectedFolderId}
+                onSelect={onSelectFolder}
+                onCreateFolder={onCreateFolder}
+                onRenameFolder={onRenameFolder}
+                onDeleteFolder={onDeleteFolder}
+                onMoveChatToFolder={onMoveChatToFolder}
+                onMoveFolderToParent={onMoveFolderToParent}
+              />
+              {selectedFolderId && (
+                <button onClick={() => onSelectFolder(null)} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 11, padding: "4px 8px", marginTop: 4 }}>Clear selection</button>
+              )}
+            </>
+          )}
+        </div>
+
         {/* Tags */}
         <div className="sidebar-section">
-          <div className="sidebar-section-title">
-            Tags
-            <button onClick={handleCreateTag} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0 }} title="New tag">+</button>
+          <div className="sidebar-section-title" onClick={() => toggleSection("tags")} style={{ cursor: "pointer" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <ChevronIcon expanded={!collapsed.tags} />
+              Tags
+            </span>
+            <button onClick={(e) => { e.stopPropagation(); setCreatingTag(true); }} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0 }} title="New tag">+</button>
           </div>
-          {tags.length > 0 ? (
-            <TagTree tags={tags} selectedTagIds={selectedTagIds} onToggle={onToggleTag} onSelect={onSelectTag} onCreateTag={onCreateTag} onUpdateTag={onUpdateTag} onDeleteTag={onDeleteTag} />
-          ) : (
-            <div style={{ fontSize: 11, color: "var(--text-faint)", padding: "0 8px", fontStyle: "italic" }}>No tags yet</div>
-          )}
-          {selectedTagIds.size > 0 && (
-            <button onClick={onClearTags} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 11, padding: "4px 8px", marginTop: 4 }}>Clear selection</button>
+          {!collapsed.tags && (
+            <>
+              {creatingTag && (
+                <div style={{ padding: "2px 8px" }}>
+                  <InlineInput
+                    placeholder="Tag name..."
+                    onSubmit={(name) => {
+                      const color = tagColors[Math.floor(Math.random() * tagColors.length)];
+                      onCreateTag(name, undefined, color);
+                    }}
+                    onCancel={() => setCreatingTag(false)}
+                  />
+                </div>
+              )}
+              {tags.length > 0 ? (
+                <TagTree tags={tags} selectedTagIds={selectedTagIds} onToggle={onToggleTag} onSelect={onSelectTag} onCreateTag={onCreateTag} onUpdateTag={onUpdateTag} onDeleteTag={onDeleteTag} />
+              ) : !creatingTag ? (
+                <div style={{ fontSize: 11, color: "var(--text-faint)", padding: "0 8px", fontStyle: "italic" }}>No tags yet</div>
+              ) : null}
+              {selectedTagIds.size > 0 && (
+                <button onClick={onClearTags} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 11, padding: "4px 8px", marginTop: 4 }}>Clear selection</button>
+              )}
+            </>
           )}
         </div>
 
         {/* Sources */}
         <div className="sidebar-section">
-          <div className="sidebar-section-title">Sources</div>
-          {sources.map((s) => (
+          <div className="sidebar-section-title" onClick={() => toggleSection("sources")} style={{ cursor: "pointer" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <ChevronIcon expanded={!collapsed.sources} />
+              Sources
+            </span>
+          </div>
+          {!collapsed.sources && sources.map((s) => (
             <button
               key={String(s.value)}
               className={`sidebar-btn ${selectedSource === s.value ? "active" : ""}`}
@@ -142,8 +264,13 @@ export function Sidebar({
         {/* Recent */}
         {recentChats.length > 0 && (
           <div className="sidebar-section">
-            <div className="sidebar-section-title">Recent</div>
-            {recentChats.map((chat) => (
+            <div className="sidebar-section-title" onClick={() => toggleSection("recent")} style={{ cursor: "pointer" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <ChevronIcon expanded={!collapsed.recent} />
+                Recent
+              </span>
+            </div>
+            {!collapsed.recent && recentChats.map((chat) => (
               <button key={chat.id} className="sidebar-btn-small" onClick={() => onSelectChat(chat)}>
                 {chat.title}
               </button>
