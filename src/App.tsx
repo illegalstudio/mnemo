@@ -156,48 +156,51 @@ export default function App() {
           />
         </div>
         <ResizeHandle onResize={handleSidebarResize} onResizeStart={handleResizeStart} onResizeEnd={handleResizeEnd} />
-        <div
-          className={`center-panel ${selectedChat ? "" : "expanded"}`}
-          style={selectedChat ? { width: chatListWidth, minWidth: chatListWidth } : undefined}
-        >
-          <ChatList
-            chats={chats} selectedChatId={selectedChat?.id ?? null}
-            generatingMetadata={generatingMetadata}
-            onSelectChat={setSelectedChat} onImport={handleImport}
-            onDeleteChat={deleteChat}
+        {showSettings ? (
+          <Settings
+            themeMode={themeMode}
+            onSetTheme={setThemeMode}
+            analysisSettings={analysisSettings}
+            onUpdateAnalysis={updateAnalysis}
+            onUpdateAnalysisFields={updateAnalysisFields}
+            onResetPrompt={resetPrompt}
+            onClose={() => setShowSettings(false)}
           />
-        </div>
-        {selectedChat && (
+        ) : (
           <>
-            <ResizeHandle onResize={handleChatListResize} onResizeStart={handleResizeStart} onResizeEnd={handleResizeEnd} />
-            <ChatDetail
-              chat={selectedChat} tags={selectedChatTags} allTags={tags}
-              attachments={selectedChatAttachments}
-              onUpdateChat={updateChat} onClose={() => setSelectedChat(null)}
-              onAddTag={addTagToChat} onRemoveTag={removeTagFromChat}
-              onCreateTag={async (name: string) => {
-                const tag = await createTag(name);
-                if (tag && selectedChat) {
-                  await addTagToChat(selectedChat.id, tag.id);
-                }
-              }}
-              onAddAttachment={addAttachment} onRemoveAttachment={removeAttachment}
-              isResizing={isResizing}
-            />
+            <div
+              className={`center-panel ${selectedChat ? "" : "expanded"}`}
+              style={selectedChat ? { width: chatListWidth, minWidth: chatListWidth } : undefined}
+            >
+              <ChatList
+                chats={chats} selectedChatId={selectedChat?.id ?? null}
+                generatingMetadata={generatingMetadata}
+                onSelectChat={setSelectedChat} onImport={handleImport}
+                onDeleteChat={deleteChat}
+              />
+            </div>
+            {selectedChat && (
+              <>
+                <ResizeHandle onResize={handleChatListResize} onResizeStart={handleResizeStart} onResizeEnd={handleResizeEnd} />
+                <ChatDetail
+                  chat={selectedChat} tags={selectedChatTags} allTags={tags}
+                  attachments={selectedChatAttachments}
+                  onUpdateChat={updateChat} onClose={() => setSelectedChat(null)}
+                  onAddTag={addTagToChat} onRemoveTag={removeTagFromChat}
+                  onCreateTag={async (name: string) => {
+                    const tag = await createTag(name);
+                    if (tag && selectedChat) {
+                      await addTagToChat(selectedChat.id, tag.id);
+                    }
+                  }}
+                  onAddAttachment={addAttachment} onRemoveAttachment={removeAttachment}
+                  isResizing={isResizing}
+                />
+              </>
+            )}
           </>
         )}
       </div>
-      {showSettings && (
-        <Settings
-          themeMode={themeMode}
-          onSetTheme={setThemeMode}
-          analysisSettings={analysisSettings}
-          onUpdateAnalysis={updateAnalysis}
-          onUpdateAnalysisFields={updateAnalysisFields}
-          onResetPrompt={resetPrompt}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
     </>
   );
 }
