@@ -54,7 +54,13 @@ interface ChatDetailProps {
 }
 
 function slugify(text: string): string {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  return text
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\u200d\ufe0f]/gu, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 const sourceLabels: Record<string, string> = { claude: "Claude", perplexity: "Perplexity", chatgpt: "ChatGPT", other: "Other" };

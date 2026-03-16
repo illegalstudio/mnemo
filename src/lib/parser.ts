@@ -42,11 +42,17 @@ export function extractTitle(content: string, filename: string): string {
   return filename.replace(/\.[^/.]+$/, "");
 }
 
+function stripEmoji(text: string): string {
+  // Remove emoji, symbols, and other non-text characters
+  return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\u200d\ufe0f]/gu, "").trim();
+}
+
 function slugifyHeading(text: string): string {
-  return text
+  return stripEmoji(text)
     .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-");
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 export function extractHeadings(content: string): HeadingEntry[] {
@@ -56,8 +62,10 @@ export function extractHeadings(content: string): HeadingEntry[] {
 
   while ((match = regex.exec(content)) !== null) {
     const level = match[1].length;
-    const text = match[2].trim();
-    headings.push({ level, text, id: slugifyHeading(text) });
+    const rawText = match[2].trim();
+    const text = stripEmoji(rawText);
+    if (!text) continue; // skip headings that are emoji-only
+    headings.push({ level, text, id: slugifyHeading(rawText) });
   }
 
   return headings;
