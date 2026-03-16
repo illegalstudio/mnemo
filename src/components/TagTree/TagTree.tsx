@@ -58,7 +58,17 @@ export function TagTree({ tags, selectedTagIds, onToggle, onSelect, onCreateTag,
       const name = window.prompt("Child tag name:");
       if (name?.trim()) onCreateTag(name.trim(), tagId);
     } else if (action === "delete") {
-      if (window.confirm(`Delete tag "${tag?.name}"?`)) onDeleteTag(tagId);
+      // If the tag is part of a multi-selection, delete all selected
+      if (selectedTagIds.has(tagId) && selectedTagIds.size > 1) {
+        const selectedNames = tags.filter(t => selectedTagIds.has(t.id)).map(t => t.name).join(", ");
+        if (window.confirm(`Delete ${selectedTagIds.size} tags: ${selectedNames}?`)) {
+          for (const id of selectedTagIds) {
+            onDeleteTag(id);
+          }
+        }
+      } else {
+        if (window.confirm(`Delete tag "${tag?.name}"?`)) onDeleteTag(tagId);
+      }
     }
     setContextMenu(null);
   }
@@ -110,7 +120,11 @@ export function TagTree({ tags, selectedTagIds, onToggle, onSelect, onCreateTag,
           <button onClick={() => handleAction("color", contextMenu.tagId)}>Change Color</button>
           <button onClick={() => handleAction("child", contextMenu.tagId)}>Create Child</button>
           <div className="divider" />
-          <button className="danger" onClick={() => handleAction("delete", contextMenu.tagId)}>Delete</button>
+          <button className="danger" onClick={() => handleAction("delete", contextMenu.tagId)}>
+            {selectedTagIds.has(contextMenu.tagId) && selectedTagIds.size > 1
+              ? `Delete ${selectedTagIds.size} tags`
+              : "Delete"}
+          </button>
         </div>
       )}
     </>
