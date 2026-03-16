@@ -51,38 +51,15 @@ function slugifyHeading(text: string): string {
 
 export function extractHeadings(content: string): HeadingEntry[] {
   const headings: HeadingEntry[] = [];
-  const lines = content.split("\n");
+  const regex = /^(#{1,2}) (.+)$/gm;
+  let match: RegExpExecArray | null;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    // Match H1 (title) — always include
-    const h1Match = line.match(/^# (.+)$/);
-    if (h1Match) {
-      const text = h1Match[1].trim();
-      headings.push({ level: 1, text, id: slugifyHeading(text) });
-      continue;
-    }
-    // Match H2 — only include if it's a "user turn" heading:
-    // preceded by start of file, blank line after ---, or blank lines only
-    const h2Match = line.match(/^## (.+)$/);
-    if (h2Match) {
-      // Look backwards to see if this H2 follows a --- separator or is near the start
-      let isUserHeading = false;
-      for (let j = i - 1; j >= 0; j--) {
-        const prev = lines[j].trim();
-        if (prev === "") continue; // skip blank lines
-        if (prev === "---") { isUserHeading = true; break; }
-        if (prev.startsWith("# ")) { isUserHeading = true; break; } // right after title
-        break; // any other content means it's an AI heading
-      }
-      // Also include if it's near the beginning (first heading after title)
-      if (i <= 2) isUserHeading = true;
-
-      if (isUserHeading) {
-        const text = h2Match[1].trim();
-        headings.push({ level: 2, text, id: slugifyHeading(text) });
-      }
-    }
+  while ((match = regex.exec(content)) !== null) {
+    const hashes = match[1];
+    // Only include H1 and H2 — AI response headings are H4+ so they're excluded
+    if (hashes.length > 2) continue;
+    const text = match[2].trim();
+    headings.push({ level: hashes.length, text, id: slugifyHeading(text) });
   }
 
   return headings;

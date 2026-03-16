@@ -119,7 +119,13 @@ export function convertHtmlToMarkdown(raw: string): {
       md += `## ${firstLine}\n\n`;
       if (rest) md += `${rest}\n\n`;
     } else {
-      md += `${turnMd}\n\n---\n\n`;
+      // Downshift all headings in AI responses so they don't appear in TOC
+      // H1 -> H4, H2 -> H5, H3 -> H6
+      const shifted = turnMd
+        .replace(/^### /gm, "###### ")
+        .replace(/^## /gm, "##### ")
+        .replace(/^# /gm, "#### ");
+      md += `${shifted}\n\n---\n\n`;
     }
   });
 
