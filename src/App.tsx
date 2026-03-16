@@ -56,7 +56,7 @@ export default function App() {
     setSelectedChat, importFile, updateChat, deleteChat,
     createTag, updateTag, deleteTag,
     addTagToChat, removeTagFromChat, addAttachment, removeAttachment,
-    toggleTag, clearTags, selectSource, search,
+    toggleTag, selectTag, clearTags, selectSource, search,
   } = useDatabase();
 
   const { mode: themeMode, setThemeMode } = useTheme();
@@ -148,7 +148,7 @@ export default function App() {
           <Sidebar
             tags={tags} selectedTagIds={selectedTagIds} selectedSource={selectedSource}
             searchQuery={searchQuery} recentChats={recentChats}
-            onSearch={search} onToggleTag={toggleTag} onClearTags={clearTags} onSelectSource={selectSource}
+            onSearch={search} onToggleTag={toggleTag} onSelectTag={selectTag} onClearTags={clearTags} onSelectSource={selectSource}
             onSelectChat={setSelectedChat} onCreateTag={createTag}
             onUpdateTag={updateTag} onDeleteTag={deleteTag}
             onOpenSettings={() => setShowSettings(true)}

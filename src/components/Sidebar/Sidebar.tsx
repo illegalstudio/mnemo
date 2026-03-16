@@ -11,6 +11,7 @@ interface SidebarProps {
   recentChats: Chat[];
   onSearch: (query: string) => void;
   onToggleTag: (tagId: string) => void;
+  onSelectTag: (tagId: string) => void;
   onClearTags: () => void;
   onSelectSource: (source: Source | null) => void;
   onSelectChat: (chat: Chat) => void;
@@ -40,7 +41,7 @@ const tagColors = ["#88C0D0", "#81A1C1", "#5E81AC", "#BF616A", "#D08770", "#EBCB
 
 export function Sidebar({
   tags, selectedTagIds, selectedSource, searchQuery, recentChats,
-  onSearch, onToggleTag, onClearTags, onSelectSource, onSelectChat,
+  onSearch, onToggleTag, onSelectTag, onClearTags, onSelectSource, onSelectChat,
   onCreateTag, onUpdateTag, onDeleteTag, onOpenSettings, onImportClick,
 }: SidebarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
@@ -114,7 +115,7 @@ export function Sidebar({
             <button onClick={handleCreateTag} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0 }} title="New tag">+</button>
           </div>
           {tags.length > 0 ? (
-            <TagTree tags={tags} selectedTagIds={selectedTagIds} onToggle={onToggleTag} onCreateTag={onCreateTag} onUpdateTag={onUpdateTag} onDeleteTag={onDeleteTag} />
+            <TagTree tags={tags} selectedTagIds={selectedTagIds} onToggle={onToggleTag} onSelect={onSelectTag} onCreateTag={onCreateTag} onUpdateTag={onUpdateTag} onDeleteTag={onDeleteTag} />
           ) : (
             <div style={{ fontSize: 11, color: "var(--text-faint)", padding: "0 8px", fontStyle: "italic" }}>No tags yet</div>
           )}

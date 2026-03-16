@@ -225,6 +225,7 @@ export function useDatabase() {
   }, [selectedChat]);
 
   // Toggle a tag in the selection (click to add, click again to remove)
+  // Cmd+click: toggle a single tag in the multi-selection
   const toggleTag = useCallback((tagId: string) => {
     setSelectedTagIds(prev => {
       const next = new Set(prev);
@@ -234,6 +235,16 @@ export function useDatabase() {
         next.add(tagId);
       }
       return next;
+    });
+  }, []);
+
+  // Simple click: select only this tag, or deselect if it was the only one
+  const selectTag = useCallback((tagId: string) => {
+    setSelectedTagIds(prev => {
+      if (prev.size === 1 && prev.has(tagId)) {
+        return new Set();
+      }
+      return new Set([tagId]);
     });
   }, []);
 
@@ -273,6 +284,7 @@ export function useDatabase() {
     addAttachment,
     removeAttachment,
     toggleTag,
+    selectTag,
     clearTags,
     selectSource,
     search,
