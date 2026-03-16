@@ -134,8 +134,17 @@ export function convertHtmlToMarkdown(raw: string): {
     if (!turnMd) return;
 
     if (turn.role === "user") {
-      const firstLine = turnMd.split("\n")[0].replace(/^#+\s*/, "").trim();
-      const rest = turnMd.split("\n").slice(1).join("\n").trim();
+      // For user messages: use turndown but ensure whitespace-pre-wrap newlines are preserved
+      // ChatGPT wraps user text in <div class="whitespace-pre-wrap"> where \n are literal
+      const clone = turn.el.cloneNode(true) as HTMLElement;
+      // Find whitespace-pre-wrap divs and convert their literal \n to <br>
+      clone.querySelectorAll('[class*="whitespace-pre-wrap"]').forEach((el) => {
+        el.innerHTML = el.innerHTML.replace(/\n/g, "<br>");
+      });
+      const userMd = turndown.turndown(clone.innerHTML).trim();
+      const lines = userMd.split("\n");
+      const firstLine = lines[0]?.replace(/^#+\s*/, "").trim() || "";
+      const rest = lines.slice(1).join("\n").trim();
       md += `# ${firstLine}\n\n`;
       if (rest) md += `${rest}\n\n`;
     } else {
