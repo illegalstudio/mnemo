@@ -35,7 +35,7 @@ ${fields.join(",\n")}
 }`;
 
   if (settings.fields.tags) {
-    prompt += `\nProvide ${settings.tagCount.min}-${settings.tagCount.max} lowercase tags using hyphens not spaces.`;
+    prompt += `\nProvide ${settings.tagCount.min}-${settings.tagCount.max} lowercase single-word tags. Prefer broad, general categories (e.g. "finance", "programming", "health") over specific multi-word tags. Use hyphens only when absolutely necessary.`;
     prompt += `\nReuse existing tags as much as possible before creating new ones.`;
     if (existingTags.length > 0) {
       prompt += `\nExisting tags: ${existingTags.join(", ")}.`;
