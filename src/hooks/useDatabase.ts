@@ -119,12 +119,14 @@ export function useDatabase() {
     })();
   }, [selectedChat?.id]);
 
-  const importFile = useCallback(async (filename: string, content: string, contentHtml?: string, sourceOverride?: Source, analysisSettings?: AnalysisSettings) => {
+  const importFile = useCallback(async (filename: string, content: string, contentHtml?: string, sourceOverride?: Source, analysisSettings?: AnalysisSettings, folderId?: string | null) => {
     const parsed = parseImportFile(filename, content, contentHtml);
     if (sourceOverride) parsed.source = sourceOverride;
+    if (folderId && folderId !== "__unfiled__") parsed.folder_id = folderId;
     const chat = await db.insertChat(parsed);
     await refreshChats();
     await refreshTags();
+    await refreshFolders();
     setSelectedChat(chat);
 
     if (!analysisSettings?.enabled) {
@@ -173,7 +175,7 @@ export function useDatabase() {
         return next;
       });
     }
-  }, [refreshChats, refreshTags]);
+  }, [refreshChats, refreshTags, refreshFolders]);
 
   const updateChat = useCallback(async (id: string, updates: Partial<Chat>) => {
     await db.updateChat(id, updates);

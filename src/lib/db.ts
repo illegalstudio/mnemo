@@ -189,9 +189,9 @@ export async function insertChat(chat: Omit<Chat, "id">): Promise<Chat> {
   const id = uuidv4();
 
   await d.execute(
-    `INSERT INTO chats (id, title, summary, source, content_md, content_html, imported_at, chat_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, chat.title, chat.summary, chat.source, chat.content_md, chat.content_html, chat.imported_at, chat.chat_date]
+    `INSERT INTO chats (id, title, summary, source, content_md, content_html, imported_at, chat_date, folder_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, chat.title, chat.summary, chat.source, chat.content_md, chat.content_html, chat.imported_at, chat.chat_date, chat.folder_id ?? null]
   );
 
   await invoke("index_chat", {
@@ -385,7 +385,7 @@ export async function getAllFolders(): Promise<FolderWithCount[]> {
   const d = await getDb();
   // Get all folders first
   const allFolders = await d.select<Folder[]>(
-    "SELECT * FROM folders ORDER BY position, name"
+    "SELECT * FROM folders ORDER BY name COLLATE NOCASE"
   );
   // Get chat counts per folder (direct only)
   const directCounts = await d.select<{ folder_id: string; cnt: number }[]>(
