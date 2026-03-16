@@ -81,9 +81,9 @@ export default function App() {
     for (const filePath of paths) {
       const content = await readTextFile(filePath);
       const name = filePath.split("/").pop() || filePath.split("\\").pop() || "unknown.md";
-      await importFile(name, content, undefined, undefined, analysisSettings);
+      await importFile(name, content, undefined, undefined, analysisSettings, selectedFolderId);
     }
-  }, [importFile, analysisSettings]);
+  }, [importFile, analysisSettings, selectedFolderId]);
 
   const handleRegenerateField = useCallback(async (chatId: string, field: "title" | "summary" | "tags") => {
     const chatObj = chats.find(c => c.id === chatId);
@@ -144,22 +144,20 @@ export default function App() {
       e.preventDefault();
 
       if (isMnemoHtmlPaste(text)) {
-        // Bookmarklet HTML paste — convert to markdown, save original HTML
         const { title, content, source } = convertHtmlToMarkdown(text);
-        importFile(title + ".md", content, text, source, analysisSettings);
+        importFile(title + ".md", content, text, source, analysisSettings, selectedFolderId);
       } else if (text.includes("# ") || text.includes("## ")) {
-        // Plain markdown paste
         const firstLine = text.split("\n")[0].replace(/^#\s+/, "").trim();
-        importFile((firstLine || "Pasted Chat") + ".md", text, undefined, undefined, analysisSettings);
+        importFile((firstLine || "Pasted Chat") + ".md", text, undefined, undefined, analysisSettings, selectedFolderId);
       }
     };
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [importFile, analysisSettings]);
+  }, [importFile, analysisSettings, selectedFolderId]);
 
   const handleImport = async (files: { name: string; content: string }[]) => {
     for (const file of files) {
-      await importFile(file.name, file.content);
+      await importFile(file.name, file.content, undefined, undefined, analysisSettings, selectedFolderId);
     }
   };
 
