@@ -136,8 +136,13 @@ export function useDatabase() {
         }
         await refreshChats();
         await refreshTags();
+        // Refresh the selected chat with updated data
         const updated = (await db.getAllChats()).find(c => c.id === chat.id);
-        if (updated) setSelectedChat(updated);
+        if (updated) {
+          setSelectedChat(updated);
+          const chatTags = await db.getTagsForChat(chat.id);
+          setSelectedChatTags(chatTags);
+        }
       }
     } catch (e) {
       console.error('Metadata generation failed:', e);
