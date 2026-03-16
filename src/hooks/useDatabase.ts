@@ -3,6 +3,7 @@ import type { Chat, Tag, TagWithCount, Attachment, Source } from '../types';
 import * as db from '../lib/db';
 import { parseImportFile } from '../lib/parser';
 import { generateMetadata } from '../lib/metadata';
+import type { AnalysisSettings } from './useAnalysisSettings';
 
 export function useDatabase() {
   const [chats, setChats] = useState<Chat[]>([]);
@@ -98,7 +99,7 @@ export function useDatabase() {
     })();
   }, [selectedChat?.id]);
 
-  const importFile = useCallback(async (filename: string, content: string, contentHtml?: string, sourceOverride?: Source) => {
+  const importFile = useCallback(async (filename: string, content: string, contentHtml?: string, sourceOverride?: Source, analysisSettings?: AnalysisSettings) => {
     const parsed = parseImportFile(filename, content, contentHtml);
     if (sourceOverride) parsed.source = sourceOverride;
     const chat = await db.insertChat(parsed);
@@ -106,15 +107,21 @@ export function useDatabase() {
     await refreshTags();
     setSelectedChat(chat);
 
+    if (!analysisSettings?.enabled) {
+      return;
+    }
+
     setGeneratingMetadata(prev => new Set(prev).add(chat.id));
     try {
-      const metadata = await generateMetadata(content);
+      const metadata = await generateMetadata(content, analysisSettings);
       if (metadata) {
-        await db.updateChat(chat.id, {
-          title: metadata.title,
-          summary: metadata.summary,
-        });
-        for (const tagName of metadata.tags) {
+        const updates: Partial<Chat> = {};
+        if (metadata.title) updates.title = metadata.title;
+        if (metadata.summary) updates.summary = metadata.summary;
+        if (Object.keys(updates).length > 0) {
+          await db.updateChat(chat.id, updates);
+        }
+        for (const tagName of metadata.tags || []) {
           const existingTags = await db.getAllTags();
           const slug = tagName.toLowerCase().replace(/\s+/g, '-');
           const existingTag = existingTags.find(t => t.slug === slug);

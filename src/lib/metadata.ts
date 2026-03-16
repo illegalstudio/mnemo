@@ -1,22 +1,42 @@
 import { Command } from "@tauri-apps/plugin-shell";
 import type { MetadataResult } from "../types";
+import type { AnalysisSettings } from "../hooks/useAnalysisSettings";
 
-const PROMPT = `You are a metadata extractor for an AI chat archive.
-Given the following AI chat transcript, respond ONLY with valid JSON (no markdown, no explanation) in this exact format:
-{
-  "title": "concise title describing the main topic (max 60 chars)",
-  "summary": "2-3 sentence summary of what was discussed",
-  "tags": ["tag1", "tag2", "tag3"]
+function buildPrompt(settings: AnalysisSettings): string {
+  const fields: string[] = [];
+  if (settings.fields.title) {
+    fields.push(`  "title": "concise title describing the main topic (max 60 chars)"`);
+  }
+  if (settings.fields.summary) {
+    fields.push(`  "summary": "2-3 sentence summary of what was discussed"`);
+  }
+  if (settings.fields.tags) {
+    fields.push(`  "tags": ["tag1", "tag2", "tag3"]`);
+  }
+
+  if (fields.length === 0) return "";
+
+  const tagInstruction = settings.fields.tags
+    ? `\nProvide ${settings.tagCount.min}-${settings.tagCount.max} lowercase tags using hyphens not spaces.`
+    : "";
+
+  return `${settings.prompt}\n{\n${fields.join(",\n")}\n}${tagInstruction}`;
 }
-Provide 3-6 lowercase tags using hyphens not spaces.`;
 
 export async function generateMetadata(
-  contentMd: string
-): Promise<MetadataResult | null> {
+  contentMd: string,
+  settings: AnalysisSettings
+): Promise<Partial<MetadataResult> | null> {
+  if (!settings.enabled) return null;
+  if (!settings.fields.title && !settings.fields.summary && !settings.fields.tags) return null;
+
   try {
+    const prompt = buildPrompt(settings);
+    if (!prompt) return null;
+
     // Truncate content to avoid exceeding CLI argument limits
     const truncated = contentMd.length > 8000 ? contentMd.slice(0, 8000) + "\n\n[truncated]" : contentMd;
-    const fullPrompt = `${PROMPT}\n\nHere is the chat transcript:\n\n${truncated}`;
+    const fullPrompt = `${prompt}\n\nHere is the chat transcript:\n\n${truncated}`;
 
     const command = Command.create("claude", [
       "-p",
@@ -27,24 +47,19 @@ export async function generateMetadata(
 
     const output = await command.execute();
     console.log("[metadata] exit code:", output.code);
-    console.log("[metadata] stdout:", output.stdout?.slice(0, 500));
-    console.log("[metadata] stderr:", output.stderr?.slice(0, 500));
 
     if (output.code !== 0) {
-      console.error("[metadata] command failed with code", output.code);
+      console.error("[metadata] command failed:", output.stderr);
       return null;
     }
 
     const stdout = output.stdout.trim();
     if (!stdout) return null;
 
-    // Claude CLI --output-format json wraps the response in a JSON array
-    // Try parsing as-is first, then try extracting from the wrapper
     let parsed: unknown;
     try {
       parsed = JSON.parse(stdout);
     } catch {
-      // Try to extract JSON object from the response
       const jsonMatch = stdout.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         parsed = JSON.parse(jsonMatch[0]);
@@ -54,13 +69,11 @@ export async function generateMetadata(
       }
     }
 
-    // Handle various Claude CLI output formats
-    let result: MetadataResult;
+    // Extract the actual result from Claude CLI format
     const obj = parsed as Record<string, unknown>;
+    let result: Partial<MetadataResult>;
 
     if (obj.result && typeof obj.result === "string") {
-      // Claude CLI --output-format json returns { result: "..." }
-      // The result string may contain markdown code fences
       const resultStr = obj.result as string;
       const jsonMatch = resultStr.match(/```(?:json)?\s*([\s\S]*?)```/) || resultStr.match(/(\{[\s\S]*\})/);
       if (jsonMatch) {
@@ -70,31 +83,28 @@ export async function generateMetadata(
         return null;
       }
     } else if (Array.isArray(parsed)) {
-      // Array format: [{ type: "text", text: "..." }]
       const textItem = (parsed as { type?: string; text?: string }[]).find(
         (item) => item.type === "text" && item.text
       );
       if (textItem?.text) {
         result = JSON.parse(textItem.text);
       } else {
-        console.error("[metadata] no text item in array response");
         return null;
       }
-    } else if (obj.title && obj.tags) {
-      // Direct result object
-      result = obj as unknown as MetadataResult;
+    } else if (obj.title || obj.tags || obj.summary) {
+      result = obj as Partial<MetadataResult>;
     } else {
       console.error("[metadata] unexpected response format:", parsed);
       return null;
     }
 
-    // Validate the result has required fields
-    if (!result.title || !result.tags || !Array.isArray(result.tags)) {
-      console.error("[metadata] invalid result structure:", result);
-      return null;
-    }
+    // Only return fields that were requested
+    const filtered: Partial<MetadataResult> = {};
+    if (settings.fields.title && result.title) filtered.title = result.title;
+    if (settings.fields.summary && result.summary) filtered.summary = result.summary;
+    if (settings.fields.tags && result.tags && Array.isArray(result.tags)) filtered.tags = result.tags;
 
-    return result;
+    return Object.keys(filtered).length > 0 ? filtered : null;
   } catch (e) {
     console.error("[metadata] error:", e);
     return null;

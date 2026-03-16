@@ -4,6 +4,7 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import { isMnemoHtmlPaste, convertHtmlToMarkdown } from "./lib/html-parser";
 import { useDatabase } from "./hooks/useDatabase";
 import { useTheme } from "./hooks/useTheme";
+import { useAnalysisSettings } from "./hooks/useAnalysisSettings";
 import { Sidebar } from "./components/Sidebar/Sidebar";
 import ChatList from "./components/ChatList/ChatList";
 import ChatDetail from "./components/ChatDetail/ChatDetail";
@@ -59,6 +60,7 @@ export default function App() {
   } = useDatabase();
 
   const { mode: themeMode, setThemeMode } = useTheme();
+  const { settings: analysisSettings, update: updateAnalysis, updateFields: updateAnalysisFields, resetPrompt } = useAnalysisSettings();
   const [showSettings, setShowSettings] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [chatListWidth, setChatListWidth] = useState(260);
@@ -74,9 +76,9 @@ export default function App() {
     for (const filePath of paths) {
       const content = await readTextFile(filePath);
       const name = filePath.split("/").pop() || filePath.split("\\").pop() || "unknown.md";
-      await importFile(name, content);
+      await importFile(name, content, undefined, undefined, analysisSettings);
     }
-  }, [importFile]);
+  }, [importFile, analysisSettings]);
 
   // Cmd+Shift+F to focus global search
   useEffect(() => {
@@ -106,16 +108,16 @@ export default function App() {
       if (isMnemoHtmlPaste(text)) {
         // Bookmarklet HTML paste — convert to markdown, save original HTML
         const { title, content, source } = convertHtmlToMarkdown(text);
-        importFile(title + ".md", content, text, source);
+        importFile(title + ".md", content, text, source, analysisSettings);
       } else if (text.includes("# ") || text.includes("## ")) {
         // Plain markdown paste
         const firstLine = text.split("\n")[0].replace(/^#\s+/, "").trim();
-        importFile((firstLine || "Pasted Chat") + ".md", text);
+        importFile((firstLine || "Pasted Chat") + ".md", text, undefined, undefined, analysisSettings);
       }
     };
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [importFile]);
+  }, [importFile, analysisSettings]);
 
   const handleImport = async (files: { name: string; content: string }[]) => {
     for (const file of files) {
@@ -189,6 +191,10 @@ export default function App() {
         <Settings
           themeMode={themeMode}
           onSetTheme={setThemeMode}
+          analysisSettings={analysisSettings}
+          onUpdateAnalysis={updateAnalysis}
+          onUpdateAnalysisFields={updateAnalysisFields}
+          onResetPrompt={resetPrompt}
           onClose={() => setShowSettings(false)}
         />
       )}
