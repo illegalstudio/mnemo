@@ -107,7 +107,7 @@ export function convertHtmlToMarkdown(raw: string): {
 
   const turns = extractTurns(doc, source);
 
-  let md = `# ${title}\n\n`;
+  let md = "";
 
   turns.forEach((turn) => {
     const turnMd = turndown.turndown(turn.el.innerHTML).trim();
@@ -116,15 +116,14 @@ export function convertHtmlToMarkdown(raw: string): {
     if (turn.role === "user") {
       const firstLine = turnMd.split("\n")[0].replace(/^#+\s*/, "").trim();
       const rest = turnMd.split("\n").slice(1).join("\n").trim();
-      md += `## ${firstLine}\n\n`;
+      md += `# ${firstLine}\n\n`;
       if (rest) md += `${rest}\n\n`;
     } else {
-      // Downshift all headings in AI responses so they don't appear in TOC
-      // H1 -> H4, H2 -> H5, H3 -> H6
+      // Downshift all headings in AI responses: H1->H2, H2->H3, H3->H4
       const shifted = turnMd
-        .replace(/^### /gm, "###### ")
-        .replace(/^## /gm, "##### ")
-        .replace(/^# /gm, "#### ");
+        .replace(/^### /gm, "#### ")
+        .replace(/^## /gm, "### ")
+        .replace(/^# /gm, "## ");
       md += `${shifted}\n\n---\n\n`;
     }
   });

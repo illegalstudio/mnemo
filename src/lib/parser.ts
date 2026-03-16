@@ -51,15 +51,12 @@ function slugifyHeading(text: string): string {
 
 export function extractHeadings(content: string): HeadingEntry[] {
   const headings: HeadingEntry[] = [];
-  const regex = /^(#{1,2}) (.+)$/gm;
+  const regex = /^# (.+)$/gm;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(content)) !== null) {
-    const hashes = match[1];
-    // Only include H1 and H2 — AI response headings are H4+ so they're excluded
-    if (hashes.length > 2) continue;
-    const text = match[2].trim();
-    headings.push({ level: hashes.length, text, id: slugifyHeading(text) });
+    const text = match[1].trim();
+    headings.push({ level: 1, text, id: slugifyHeading(text) });
   }
 
   return headings;
