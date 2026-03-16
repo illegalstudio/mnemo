@@ -125,3 +125,15 @@ export function convertHtmlToMarkdown(raw: string): {
 
   return { title, content: md, source };
 }
+
+/**
+ * Re-parse a chat's stored HTML to regenerate markdown
+ */
+export function reparseHtml(rawHtml: string): { title: string; content: string; source: Source } | null {
+  if (!rawHtml) return null;
+  try {
+    return convertHtmlToMarkdown(rawHtml);
+  } catch {
+    return null;
+  }
+}

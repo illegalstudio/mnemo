@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-import { isMnemoHtmlPaste, convertHtmlToMarkdown } from "./lib/html-parser";
+import { isMnemoHtmlPaste, convertHtmlToMarkdown, reparseHtml } from "./lib/html-parser";
 import { generateSingleField } from "./lib/metadata";
 import * as db from "./lib/db";
 import { useDatabase } from "./hooks/useDatabase";
@@ -105,6 +105,15 @@ export default function App() {
       }
     }
   }, [chats, analysisSettings, updateChat, addTagToChat, createTag]);
+
+  const handleReparseHtml = useCallback(async (chatId: string) => {
+    const chatObj = chats.find(c => c.id === chatId);
+    if (!chatObj?.content_html) return;
+    const result = reparseHtml(chatObj.content_html);
+    if (result) {
+      await updateChat(chatId, { content_md: result.content });
+    }
+  }, [chats, updateChat]);
 
   // Cmd+Shift+F to focus global search
   useEffect(() => {
@@ -222,6 +231,7 @@ export default function App() {
                   onAddAttachment={addAttachment} onRemoveAttachment={removeAttachment}
                   onDeleteChat={deleteChat}
                   onRegenerateField={handleRegenerateField}
+                  onReparseHtml={handleReparseHtml}
                   isResizing={isResizing}
                 />
               </>

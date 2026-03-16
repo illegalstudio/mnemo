@@ -49,6 +49,7 @@ interface ChatDetailProps {
   onRemoveAttachment: (attachmentId: string) => void;
   onDeleteChat: (id: string) => void;
   onRegenerateField: (chatId: string, field: "title" | "summary" | "tags") => Promise<void>;
+  onReparseHtml: (chatId: string) => Promise<void>;
   isResizing?: boolean;
 }
 
@@ -60,7 +61,7 @@ const sourceLabels: Record<string, string> = { claude: "Claude", perplexity: "Pe
 
 export default function ChatDetail({
   chat, tags, allTags, attachments, onUpdateChat, onClose,
-  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, onDeleteChat, onRegenerateField, isResizing,
+  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, onDeleteChat, onRegenerateField, onReparseHtml, isResizing,
 }: ChatDetailProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(chat.title);
@@ -240,6 +241,15 @@ export default function ChatDetail({
       <div className="detail-header">
         <span className="detail-header-label">Details</span>
         <div style={{ display: "flex", gap: 4 }}>
+          {chat.content_html && (
+            <button className="close-btn" onClick={async () => {
+              await onReparseHtml(chat.id);
+            }} title="Re-parse from original HTML">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182M2.985 19.644l-.008-.006" />
+              </svg>
+            </button>
+          )}
           <button className="close-btn delete-chat-btn" onClick={() => {
             if (window.confirm("Delete this chat and all its data?")) {
               onDeleteChat(chat.id);
