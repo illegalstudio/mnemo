@@ -1384,3 +1384,21 @@ mark.search-highlight.active {
 .snapshot-action.danger:hover {
   color: var(--red);
 }
+
+.snapshot-restore-btn {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-base);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.snapshot-restore-btn:hover {
+  border-color: var(--text-faint);
+  color: var(--text-primary);
+}

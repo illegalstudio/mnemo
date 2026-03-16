@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { save } from "@tauri-apps/plugin-dialog";
+import { save, open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import type { ThemeMode } from "../../hooks/useTheme";
 import type { AnalysisSettings, LangCode } from "../../hooks/useAnalysisSettings";
 import { LANGUAGES } from "../../hooks/useAnalysisSettings";
@@ -107,6 +107,23 @@ export default function Settings({
       await loadSnapshots();
     } catch (e) {
       setSnapshotStatus("Delete error: " + e);
+    }
+  };
+
+  const handleRestoreFromFile = async () => {
+    const selected = await dialogOpen({
+      multiple: false,
+      filters: [{ name: "Database", extensions: ["db"] }],
+    });
+    if (!selected) return;
+    const filePath = selected as string;
+    if (!window.confirm("Restore from this file? A safety snapshot of the current state will be created first.")) return;
+    try {
+      await invoke("restore_snapshot", { sourcePath: filePath });
+      setSnapshotStatus("Restored. Reloading...");
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (e) {
+      setSnapshotStatus("Restore error: " + e);
     }
   };
 
@@ -239,6 +256,9 @@ export default function Settings({
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
             <button className="import-btn" onClick={handleCreateSnapshot} style={{ flex: "none" }}>
               Create Snapshot
+            </button>
+            <button className="snapshot-restore-btn" onClick={handleRestoreFromFile}>
+              Restore from File
             </button>
             {snapshotStatus && (
               <span style={{ fontSize: 12, color: snapshotStatus.startsWith("Error") ? "var(--red)" : "var(--green)" }}>
