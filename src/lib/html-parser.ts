@@ -1,4 +1,6 @@
 import TurndownService from "turndown";
+// @ts-expect-error no types available
+import { gfm } from "turndown-plugin-gfm";
 import type { Source } from "../types";
 
 const MNEMO_META_RE = /^<!--\s*mnemo:(.+?)\s*-->\n?/;
@@ -102,8 +104,26 @@ export function convertHtmlToMarkdown(raw: string): {
     bulletListMarker: "-",
   });
 
+  turndown.use(gfm);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   turndown.remove(["button", "nav", "style", "script", "svg"] as any);
+
+  // Strip ChatGPT table wrapper divs so turndown sees the raw <table>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  turndown.addRule("unwrapTableContainers", {
+    filter: (node: any) => {
+      return node.nodeName === "DIV" && (
+        node.classList?.contains("TyagGW_tableContainer") ||
+        node.classList?.contains("TyagGW_tableWrapper")
+      );
+    },
+    replacement: (_content: string, node: any) => {
+      const table = node.querySelector("table");
+      if (table) return turndown.turndown(table.outerHTML) + "\n\n";
+      return _content;
+    },
+  });
 
   const turns = extractTurns(doc, source);
 
