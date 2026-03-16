@@ -172,6 +172,7 @@ export default function ChatDetail({
   const [tocWidth, setTocWidth] = useState(200);
   const [regenerating, setRegenerating] = useState<string | null>(null);
   const [mdPreview, setMdPreview] = useState<{ filename: string; content: string } | null>(null);
+  const [imgPreview, setImgPreview] = useState<{ filename: string; path: string } | null>(null);
   const [showChatSearch, setShowChatSearch] = useState(false);
   const [chatSearchTerm, setChatSearchTerm] = useState("");
   const [chatSearchIndex, setChatSearchIndex] = useState(0);
@@ -306,6 +307,19 @@ export default function ChatDetail({
 
   const handleOpenAttachment = useCallback(async (att: Attachment) => {
     const ext = att.filename.split(".").pop()?.toLowerCase();
+    const imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"];
+    if (ext && imageExts.includes(ext)) {
+      try {
+        const { readFile } = await import("@tauri-apps/plugin-fs");
+        const bytes = await readFile(att.file_path);
+        const blob = new Blob([bytes], { type: att.mime_type || `image/${ext}` });
+        const dataUrl = URL.createObjectURL(blob);
+        setImgPreview({ filename: att.filename, path: dataUrl });
+      } catch (e) {
+        console.error("Failed to read image:", e);
+      }
+      return;
+    }
     if (ext === "md" || ext === "markdown") {
       try {
         const content = await readTextFile(att.file_path);
@@ -532,6 +546,14 @@ export default function ChatDetail({
               <span className="attachment-name">{att.filename}</span>
               <div className="attachment-actions">
                 <button className="open-btn" onClick={() => handleOpenAttachment(att)}>Open</button>
+                <button className="open-btn" onClick={async () => {
+                  const ext = att.filename.split(".").pop() || "";
+                  const dest = await import("@tauri-apps/plugin-dialog").then(d => d.save({ defaultPath: att.filename, filters: [{ name: "File", extensions: [ext] }] }));
+                  if (dest) {
+                    const { copyFile } = await import("@tauri-apps/plugin-fs");
+                    await copyFile(att.file_path, dest);
+                  }
+                }}>Download</button>
                 <button className="remove-btn" onClick={() => onRemoveAttachment(att.id)}>&times;</button>
               </div>
             </div>
@@ -613,6 +635,25 @@ export default function ChatDetail({
               <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                 {mdPreview.content}
               </Markdown>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image preview modal */}
+      {imgPreview && (
+        <div className="expand-modal-overlay" onClick={() => setImgPreview(null)}>
+          <div className="img-preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="expand-modal-header">
+              <span>{imgPreview.filename}</span>
+              <button className="close-btn" onClick={() => setImgPreview(null)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="img-preview-body">
+              <img src={imgPreview.path} alt={imgPreview.filename} />
             </div>
           </div>
         </div>
