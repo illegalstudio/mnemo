@@ -8,6 +8,8 @@ export interface Chat {
   imported_at: string;
   chat_date: string | null;
   folder_id: string | null;
+  deleted_at: string | null;
+  attachment_count?: number;
 }
 
 export interface Tag {

@@ -102,5 +102,6 @@ export function parseImportFile(
     imported_at: new Date().toISOString(),
     chat_date: null,
     folder_id: null,
+    deleted_at: null,
   };
 }

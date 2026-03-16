@@ -18,6 +18,8 @@ export function useDatabase() {
   const [folders, setFolders] = useState<FolderWithCount[]>([]);
   const [unfiledCount, setUnfiledCount] = useState(0);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [trashChats, setTrashChats] = useState<Chat[]>([]);
+  const [showTrash, setShowTrash] = useState(false);
   const [loading, setLoading] = useState(true);
   const [generatingMetadata, setGeneratingMetadata] = useState<Set<string>>(new Set());
   const initialized = useRef(false);
@@ -96,6 +98,11 @@ export function useDatabase() {
     ]);
     setFolders(result);
     setUnfiledCount(unfiled);
+  }, []);
+
+  const refreshTrash = useCallback(async () => {
+    const result = await db.getTrashChats();
+    setTrashChats(result);
   }, []);
 
   useEffect(() => {
@@ -195,7 +202,26 @@ export function useDatabase() {
     await refreshChats();
     await refreshTags();
     await refreshFolders();
-  }, [refreshChats, refreshTags, refreshFolders, selectedChat?.id, chats]);
+    await refreshTrash();
+  }, [refreshChats, refreshTags, refreshFolders, refreshTrash, selectedChat?.id, chats]);
+
+  const restoreChat = useCallback(async (id: string) => {
+    await db.restoreChat(id);
+    await refreshChats();
+    await refreshTags();
+    await refreshFolders();
+    await refreshTrash();
+  }, [refreshChats, refreshTags, refreshFolders, refreshTrash]);
+
+  const permanentlyDeleteChat = useCallback(async (id: string) => {
+    await db.permanentlyDeleteChat(id);
+    await refreshTrash();
+  }, [refreshTrash]);
+
+  const emptyTrashCb = useCallback(async () => {
+    await db.emptyTrash();
+    await refreshTrash();
+  }, [refreshTrash]);
 
   const createTag = useCallback(async (name: string, parentId?: string, color?: string) => {
     const tag = await db.insertTag(name, parentId, color);
@@ -367,5 +393,12 @@ export function useDatabase() {
     moveChatToFolder,
     moveFolderToParent,
     selectFolder,
+    trashChats,
+    showTrash,
+    setShowTrash,
+    restoreChat,
+    permanentlyDeleteChat,
+    emptyTrash: emptyTrashCb,
+    refreshTrash,
   };
 }

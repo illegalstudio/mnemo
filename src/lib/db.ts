@@ -91,6 +91,18 @@ export async function initDb(): Promise<Database> {
     // Column already exists
   }
 
+  // Migration: add deleted_at column for trash
+  try {
+    await instance.execute("ALTER TABLE chats ADD COLUMN deleted_at TEXT");
+  } catch {
+    // Column already exists
+  }
+
+  // Purge chats in trash older than 30 days
+  await instance.execute(
+    "DELETE FROM chats WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', '-30 days')"
+  );
+
   db = instance;
   return instance;
 }
@@ -149,7 +161,10 @@ export async function closeDb(): Promise<void> {
 
 export async function getAllChats(): Promise<Chat[]> {
   const d = await getDb();
-  return d.select<Chat[]>("SELECT * FROM chats ORDER BY imported_at DESC");
+  return d.select<Chat[]>(
+    `SELECT c.*, (SELECT COUNT(*) FROM attachments a WHERE a.chat_id = c.id) as attachment_count
+     FROM chats c WHERE c.deleted_at IS NULL ORDER BY c.imported_at DESC`
+  );
 }
 
 export async function searchChats(query: string): Promise<Chat[]> {
@@ -158,7 +173,7 @@ export async function searchChats(query: string): Promise<Chat[]> {
   const d = await getDb();
   const placeholders = ids.map(() => "?").join(",");
   const results = await d.select<Chat[]>(
-    `SELECT * FROM chats WHERE id IN (${placeholders})`,
+    `SELECT * FROM chats WHERE id IN (${placeholders}) AND deleted_at IS NULL`,
     ids
   );
   // Re-order to match Tantivy relevance ranking
@@ -231,11 +246,44 @@ export async function updateChat(id: string, updates: Partial<Chat>): Promise<vo
 }
 
 export async function deleteChat(id: string): Promise<void> {
+  // Soft delete: move to trash
+  const d = await getDb();
+  await d.execute("UPDATE chats SET deleted_at = ?, folder_id = NULL WHERE id = ?", [new Date().toISOString(), id]);
+  await invoke("delete_from_index", { id });
+}
+
+export async function getTrashChats(): Promise<Chat[]> {
+  const d = await getDb();
+  return d.select<Chat[]>("SELECT * FROM chats WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC");
+}
+
+export async function restoreChat(id: string): Promise<void> {
+  const d = await getDb();
+  await d.execute("UPDATE chats SET deleted_at = NULL WHERE id = ?", [id]);
+  const chat = await d.select<Chat[]>("SELECT * FROM chats WHERE id = ?", [id]);
+  if (chat.length > 0) {
+    await invoke("index_chat", {
+      id,
+      title: chat[0].title,
+      summary: chat[0].summary ?? "",
+      contentMd: chat[0].content_md,
+    });
+  }
+}
+
+export async function permanentlyDeleteChat(id: string): Promise<void> {
   const d = await getDb();
   await d.execute("DELETE FROM attachments WHERE chat_id = ?", [id]);
   await d.execute("DELETE FROM chat_tags WHERE chat_id = ?", [id]);
   await d.execute("DELETE FROM chats WHERE id = ?", [id]);
-  await invoke("delete_from_index", { id });
+}
+
+export async function emptyTrash(): Promise<void> {
+  const d = await getDb();
+  const trashed = await d.select<{ id: string }[]>("SELECT id FROM chats WHERE deleted_at IS NOT NULL");
+  for (const { id } of trashed) {
+    await permanentlyDeleteChat(id);
+  }
 }
 
 export async function getAllTags(): Promise<TagWithCount[]> {
