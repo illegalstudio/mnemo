@@ -50,7 +50,7 @@ function CollapsibleH1({ children, id }: { children: React.ReactNode; id: string
       <h1 id={id}>
         {text.slice(0, MAX_H1_LENGTH)}...
         <button className="expand-msg-btn" onClick={() => setExpanded(true)}>
-          Show full message
+          Expand
         </button>
       </h1>
       {expanded && (
