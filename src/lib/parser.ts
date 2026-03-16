@@ -54,7 +54,8 @@ function stripMarkdown(text: string): string {
     .replace(/__(.+?)__/g, "$1")       // bold alt
     .replace(/_(.+?)_/g, "$1")         // italic alt
     .replace(/`(.+?)`/g, "$1")         // inline code
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"); // links
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // links
+    .replace(/\\/g, "");               // backslash escapes
 }
 
 function slugifyHeading(text: string): string {

@@ -15,9 +15,9 @@ const MemoizedMarkdown = memo(function MemoizedMarkdown({ content, contentRef }:
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[rehypeRaw]}
       components={{
-        h1: ({ children, ...props }) => <h1 id={slugify(String(children))} {...props}>{children}</h1>,
-        h2: ({ children, ...props }) => <h2 id={slugify(String(children))} {...props}>{children}</h2>,
-        h3: ({ children, ...props }) => <h3 id={slugify(String(children))} {...props}>{children}</h3>,
+        h1: ({ children, ...props }) => <h1 id={slugify(getTextContent(children))} {...props}>{children}</h1>,
+        h2: ({ children, ...props }) => <h2 id={slugify(getTextContent(children))} {...props}>{children}</h2>,
+        h3: ({ children, ...props }) => <h3 id={slugify(getTextContent(children))} {...props}>{children}</h3>,
         a: ({ children, href, ...props }) => {
           if (href?.startsWith("#")) {
             return <a {...props} href={href} onClick={(e) => {
@@ -53,15 +53,22 @@ interface ChatDetailProps {
   isResizing?: boolean;
 }
 
+function getTextContent(node: React.ReactNode): string {
+  if (typeof node === "string") return node;
+  if (typeof node === "number") return String(node);
+  if (!node) return "";
+  if (Array.isArray(node)) return node.map(getTextContent).join("");
+  if (typeof node === "object" && node !== null) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const el = node as any;
+    if (el.props?.children) return getTextContent(el.props.children);
+  }
+  return "";
+}
+
 function slugify(text: string): string {
   return text
     .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\u200d\ufe0f]/gu, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\*(.+?)\*/g, "$1")
-    .replace(/__(.+?)__/g, "$1")
-    .replace(/_(.+?)_/g, "$1")
-    .replace(/`(.+?)`/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, "")
