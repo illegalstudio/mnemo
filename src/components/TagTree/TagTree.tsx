@@ -108,13 +108,11 @@ export function TagTree({ tags, selectedTagIds, onToggle, onSelect, onCreateTag,
           }}
           onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, tagId: tag.id }); }}
         >
-          {hasChildren ? (
+          {hasChildren && (
             <svg className={`tag-tree-chevron ${expanded ? "expanded" : ""}`} viewBox="0 0 20 20" fill="currentColor"
               onClick={(e) => { e.stopPropagation(); toggleExpand(tag.id); }}>
               <path d="M6 4l8 6-8 6V4z" />
             </svg>
-          ) : (
-            <span style={{ width: 12 }} />
           )}
           <span className="dot" style={{ backgroundColor: tag.color || "#88C0D0" }} />
           {isRenaming ? (
