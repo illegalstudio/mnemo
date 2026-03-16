@@ -7,6 +7,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { extractHeadings } from "../../lib/parser";
+import { jsxToHtml } from "../../lib/jsx-preview";
 import type { Chat, Tag, TagWithCount, Attachment } from "../../types";
 import mermaid from "mermaid";
 
@@ -329,15 +330,41 @@ export default function ChatDetail({
       }
       return;
     }
-    if (ext === "html" || ext === "htm") {
+    if (ext === "jsx" || ext === "tsx") {
       try {
-        const html = await readTextFile(att.file_path);
+        const source = await readTextFile(att.file_path);
+        const html = jsxToHtml(source, att.filename);
         const webview = new WebviewWindow(`attachment-${att.id}`, {
           title: att.filename,
           width: 900,
           height: 700,
           center: true,
           url: `data:text/html;charset=utf-8,${encodeURIComponent(html)}`,
+        });
+        webview.once("tauri://error", (e) => {
+          console.error("Failed to open JSX preview:", e);
+        });
+      } catch (e) {
+        console.error("Failed to read JSX file:", e);
+      }
+      return;
+    }
+    if (ext === "html" || ext === "htm") {
+      try {
+        let url: string;
+        if (att.file_path.startsWith("data:")) {
+          // Inline data URI (e.g. widget from bookmarklet)
+          url = att.file_path;
+        } else {
+          const html = await readTextFile(att.file_path);
+          url = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+        }
+        const webview = new WebviewWindow(`attachment-${att.id}`, {
+          title: att.filename,
+          width: 900,
+          height: 700,
+          center: true,
+          url,
         });
         webview.once("tauri://error", (e) => {
           console.error("Failed to open attachment window:", e);
