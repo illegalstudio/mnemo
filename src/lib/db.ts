@@ -98,6 +98,13 @@ export async function getDb(): Promise<Database> {
   return initDb();
 }
 
+export async function closeDb(): Promise<void> {
+  if (db) {
+    await db.close();
+    db = null;
+  }
+}
+
 export async function getAllChats(): Promise<Chat[]> {
   const d = await getDb();
   return d.select<Chat[]>("SELECT * FROM chats ORDER BY imported_at DESC");

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open as dialogOpen } from "@tauri-apps/plugin-dialog";
+import { closeDb } from "../../lib/db";
 import type { ThemeMode } from "../../hooks/useTheme";
 import type { AnalysisSettings, LangCode } from "../../hooks/useAnalysisSettings";
 import { LANGUAGES } from "../../hooks/useAnalysisSettings";
@@ -65,6 +66,7 @@ export default function Settings({
 
   const handleCreateSnapshot = async () => {
     try {
+      await closeDb();
       await invoke("create_snapshot");
       setSnapshotStatus("Snapshot created");
       await loadSnapshots();
@@ -92,9 +94,10 @@ export default function Settings({
   const handleRestoreSnapshot = async (snap: Snapshot) => {
     if (!window.confirm("Restore this snapshot? A safety snapshot of the current state will be created first.")) return;
     try {
+      await closeDb();
       await invoke("restore_snapshot", { sourcePath: snap.path });
       setSnapshotStatus("Restored. Reloading...");
-      setTimeout(() => window.location.reload(), 1000);
+      setTimeout(() => window.location.reload(), 500);
     } catch (e) {
       setSnapshotStatus("Restore error: " + e);
     }
@@ -120,6 +123,7 @@ export default function Settings({
       console.log("[restore] selected:", selected);
       if (!selected) return;
       const filePath = typeof selected === "string" ? selected : String(selected);
+      await closeDb();
       await invoke("restore_snapshot", { sourcePath: filePath });
       setSnapshotStatus("Restored. Reloading...");
       setTimeout(() => window.location.reload(), 1000);
