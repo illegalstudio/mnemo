@@ -78,8 +78,8 @@ export default function Settings({
 
   const handleExportSnapshot = async (snap: Snapshot) => {
     const date = new Date(snap.created_at * 1000);
-    const defaultName = `mnemo_${date.getFullYear()}${String(date.getMonth()+1).padStart(2,"0")}${String(date.getDate()).padStart(2,"0")}_${String(date.getHours()).padStart(2,"0")}${String(date.getMinutes()).padStart(2,"0")}.db`;
-    const dest = await save({ defaultPath: defaultName, filters: [{ name: "Database", extensions: ["db"] }] });
+    const defaultName = `mnemo_${date.getFullYear()}${String(date.getMonth()+1).padStart(2,"0")}${String(date.getDate()).padStart(2,"0")}_${String(date.getHours()).padStart(2,"0")}${String(date.getMinutes()).padStart(2,"0")}.mnemo.zip`;
+    const dest = await save({ defaultPath: defaultName, filters: [{ name: "Mnemo Backup", extensions: ["mnemo.zip"] }] });
     if (dest) {
       try {
         await invoke("export_snapshot", { filename: snap.filename, destPath: dest });
@@ -118,7 +118,7 @@ export default function Settings({
       const selected = await dialogOpen({
         multiple: false,
         directory: false,
-        filters: [{ name: "Database", extensions: ["db"] }],
+        filters: [{ name: "Mnemo Backup", extensions: ["mnemo.zip"] }],
       });
       console.log("[restore] selected:", selected);
       if (!selected) return;
