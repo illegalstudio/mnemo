@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
+import type { Chat } from "./types";
 import { isMnemoHtmlPaste, convertHtmlToMarkdown, reparseHtml } from "./lib/html-parser";
 import { generateSingleField } from "./lib/metadata";
 import * as db from "./lib/db";
@@ -65,6 +66,7 @@ export default function App() {
   const { mode: themeMode, setThemeMode } = useTheme();
   const { settings: analysisSettings, update: updateAnalysis, updateFields: updateAnalysisFields, updateLanguages: updateAnalysisLanguages } = useAnalysisSettings();
   const [showSettings, setShowSettings] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [chatListWidth, setChatListWidth] = useState(260);
   const [isResizing, setIsResizing] = useState(false);
@@ -131,6 +133,16 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Escape exits focus mode
+  useEffect(() => {
+    if (!focusMode) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFocusMode(false);
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [focusMode]);
+
   // Paste from clipboard (Cmd+V) — handles both bookmarklet HTML and plain markdown
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -180,22 +192,26 @@ export default function App() {
   return (
     <>
       <div className="app-layout">
-        <div className="sidebar" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
-          <Sidebar
-            tags={tags} folders={folders} unfiledCount={unfiledCount} selectedTagIds={selectedTagIds} selectedSource={selectedSource}
-            selectedFolderId={selectedFolderId} searchQuery={searchQuery} recentChats={recentChats}
-            onSearch={search} onToggleTag={toggleTag} onSelectTag={selectTag} onClearTags={clearTags} onSelectSource={selectSource}
-            onSelectChat={setSelectedChat} onCreateTag={createTag}
-            onUpdateTag={updateTag} onDeleteTag={deleteTag}
-            onSelectFolder={selectFolder} onCreateFolder={createFolder}
-            onRenameFolder={renameFolder} onDeleteFolder={deleteFolderCb}
-            onMoveChatToFolder={moveChatToFolder}
-            onMoveFolderToParent={moveFolderToParent}
-            onOpenSettings={() => setShowSettings(true)}
-            onImportClick={handleFileOpen}
-          />
-        </div>
-        <ResizeHandle onResize={handleSidebarResize} onResizeStart={handleResizeStart} onResizeEnd={handleResizeEnd} />
+        {!focusMode && (
+          <>
+            <div className="sidebar" style={{ width: sidebarWidth, minWidth: sidebarWidth }}>
+              <Sidebar
+                tags={tags} folders={folders} unfiledCount={unfiledCount} selectedTagIds={selectedTagIds} selectedSource={selectedSource}
+                selectedFolderId={selectedFolderId} searchQuery={searchQuery} recentChats={recentChats}
+                onSearch={search} onToggleTag={toggleTag} onSelectTag={selectTag} onClearTags={clearTags} onSelectSource={selectSource}
+                onSelectChat={setSelectedChat} onCreateTag={createTag}
+                onUpdateTag={updateTag} onDeleteTag={deleteTag}
+                onSelectFolder={selectFolder} onCreateFolder={createFolder}
+                onRenameFolder={renameFolder} onDeleteFolder={deleteFolderCb}
+                onMoveChatToFolder={moveChatToFolder}
+                onMoveFolderToParent={moveFolderToParent}
+                onOpenSettings={() => setShowSettings(true)}
+                onImportClick={handleFileOpen}
+              />
+            </div>
+            <ResizeHandle onResize={handleSidebarResize} onResizeStart={handleResizeStart} onResizeEnd={handleResizeEnd} />
+          </>
+        )}
         {showSettings ? (
           <Settings
             themeMode={themeMode}
@@ -208,21 +224,25 @@ export default function App() {
           />
         ) : (
           <>
-            <div
-              className={`center-panel ${selectedChat ? "" : "expanded"}`}
-              style={selectedChat ? { width: chatListWidth, minWidth: chatListWidth } : undefined}
-            >
-              <ChatList
-                chats={chats} selectedChatId={selectedChat?.id ?? null}
-                generatingMetadata={generatingMetadata}
-                folderMap={folderMap}
-                onSelectChat={setSelectedChat} onImport={handleImport}
-                onDeleteChat={deleteChat}
-              />
-            </div>
+            {!focusMode && (
+              <div
+                className={`center-panel ${selectedChat ? "" : "expanded"}`}
+                style={selectedChat ? { width: chatListWidth, minWidth: chatListWidth } : undefined}
+              >
+                <ChatList
+                  chats={chats} selectedChatId={selectedChat?.id ?? null}
+                  generatingMetadata={generatingMetadata}
+                  folderMap={folderMap}
+                  onSelectChat={setSelectedChat}
+                  onFocusChat={(chat: Chat) => { setSelectedChat(chat); setFocusMode(true); }}
+                  onImport={handleImport}
+                  onDeleteChat={deleteChat}
+                />
+              </div>
+            )}
             {selectedChat && (
               <>
-                <ResizeHandle onResize={handleChatListResize} onResizeStart={handleResizeStart} onResizeEnd={handleResizeEnd} />
+                {!focusMode && <ResizeHandle onResize={handleChatListResize} onResizeStart={handleResizeStart} onResizeEnd={handleResizeEnd} />}
                 <ChatDetail
                   chat={selectedChat} tags={selectedChatTags} allTags={tags}
                   attachments={selectedChatAttachments}
@@ -238,6 +258,8 @@ export default function App() {
                   onRegenerateField={handleRegenerateField}
                   onReparseHtml={handleReparseHtml}
                   isResizing={isResizing}
+                  focusMode={focusMode}
+                  onToggleFocus={() => setFocusMode(f => !f)}
                 />
               </>
             )}

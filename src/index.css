@@ -976,6 +976,53 @@ html, body, #root {
 
 .toc-item:hover { color: var(--accent); }
 
+/* ---- FOCUS MODE ---- */
+.focus-mode {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: var(--bg-base);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.focus-close-btn {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  z-index: 50;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  box-shadow: var(--shadow-sm);
+}
+
+.focus-close-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.focus-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 48px 24px;
+}
+
+.focus-content > .md-content {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
 /* ---- MARKDOWN CONTENT ---- */
 .md-content {
   font-family: "Inter", -apple-system, sans-serif;
@@ -1358,7 +1405,7 @@ html, body, #root {
 }
 
 /* Draggable chat cards & folders */
-.chat-card[draggable] { cursor: grab; }
+.chat-card[draggable] { cursor: default; }
 .chat-card.dragging { opacity: 0.4; }
 .folder-badge {
   flex-shrink: 0;

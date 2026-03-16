@@ -8,12 +8,13 @@ interface ChatListProps {
   generatingMetadata: Set<string>;
   folderMap: Map<string, string>;
   onSelectChat: (chat: Chat) => void;
+  onFocusChat: (chat: Chat) => void;
   onImport: (files: { name: string; content: string }[]) => void;
   onDeleteChat: (id: string) => void;
 }
 
 export default function ChatList({
-  chats, selectedChatId, generatingMetadata, folderMap, onSelectChat, onImport, onDeleteChat,
+  chats, selectedChatId, generatingMetadata, folderMap, onSelectChat, onFocusChat, onImport, onDeleteChat,
 }: ChatListProps) {
   const [sortBy, setSortBy] = useState<"imported_at" | "chat_date" | "title">("imported_at");
   const [isDragging, setIsDragging] = useState(false);
@@ -175,6 +176,7 @@ export default function ChatList({
                       (e.currentTarget as HTMLElement).classList.remove("dragging");
                     }}
                     onClick={(e) => handleChatClick(chat, e)}
+                    onDoubleClick={() => onFocusChat(chat)}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       setConfirmDeleteId(isConfirming ? null : chat.id);
