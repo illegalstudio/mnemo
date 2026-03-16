@@ -18,6 +18,7 @@ export default function ChatList({
   const [sortBy, setSortBy] = useState<"imported_at" | "chat_date" | "title">("imported_at");
   const [isDragging, setIsDragging] = useState(false);
   const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Clear multi-selection when chats change
   useEffect(() => {
@@ -27,6 +28,19 @@ export default function ChatList({
       return next.size === prev.size ? prev : next;
     });
   }, [chats]);
+
+  // Clear confirm delete when clicking elsewhere
+  useEffect(() => {
+    if (!confirmDeleteId) return;
+    const close = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".chat-card-delete-confirm")) {
+        setConfirmDeleteId(null);
+      }
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [confirmDeleteId]);
 
   const sortedChats = useMemo(() => {
     return [...chats].sort((a, b) => {
@@ -42,27 +56,22 @@ export default function ChatList({
   }, [chats, sortBy]);
 
   const handleChatClick = useCallback((chat: Chat, e: React.MouseEvent) => {
+    if (confirmDeleteId) { setConfirmDeleteId(null); return; }
     if (e.metaKey || e.ctrlKey) {
-      // Cmd+click: toggle multi-selection
       setMultiSelected((prev) => {
         const next = new Set(prev);
-        if (next.has(chat.id)) {
-          next.delete(chat.id);
-        } else {
-          next.add(chat.id);
-        }
+        if (next.has(chat.id)) next.delete(chat.id);
+        else next.add(chat.id);
         return next;
       });
     } else {
-      // Normal click: select single, clear multi
       setMultiSelected(new Set());
       onSelectChat(chat);
     }
-  }, [onSelectChat]);
+  }, [onSelectChat, confirmDeleteId]);
 
   const handleDeleteSelected = useCallback(async () => {
     if (multiSelected.size === 0) return;
-    if (!window.confirm(`Delete ${multiSelected.size} selected chat${multiSelected.size > 1 ? "s" : ""}?`)) return;
     for (const id of multiSelected) {
       await onDeleteChat(id);
     }
@@ -147,37 +156,55 @@ export default function ChatList({
               const isSelected = chat.id === selectedChatId && multiSelected.size === 0;
               const isMultiSelected = multiSelected.has(chat.id);
               const isGenerating = generatingMetadata.has(chat.id);
+              const isConfirming = confirmDeleteId === chat.id;
               const dateStr = new Date(chat.imported_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
               return (
-                <button
-                  key={chat.id}
-                  className={`chat-card ${isSelected ? "selected" : ""} ${isMultiSelected ? "multi-selected" : ""}`}
-                  draggable
-                  onDragStart={(e) => {
-                    setDragPayload({ type: "chat", chatId: chat.id });
-                    e.dataTransfer.effectAllowed = "move";
-                    // Need to set some data for drag to work
-                    e.dataTransfer.setData("text/plain", chat.id);
-                    (e.currentTarget as HTMLElement).classList.add("dragging");
-                  }}
-                  onDragEnd={(e) => {
-                    clearDragPayload();
-                    (e.currentTarget as HTMLElement).classList.remove("dragging");
-                  }}
-                  onClick={(e) => handleChatClick(chat, e)}
-                >
-                  <div className="chat-card-title">{chat.title}</div>
-                  {chat.summary && <div className="chat-card-summary">{chat.summary}</div>}
-                  <div className="chat-card-meta">
-                    <span className={`source-badge ${chat.source}`}>{chat.source}</span>
-                    {chat.folder_id && folderMap.get(chat.folder_id) && (
-                      <span className="source-badge folder">{folderMap.get(chat.folder_id)}</span>
-                    )}
-                    <span className="chat-card-date">{dateStr}</span>
-                    {isGenerating && <span className="chat-card-generating">analyzing...</span>}
-                  </div>
-                </button>
+                <div key={chat.id} className="chat-card-wrapper">
+                  <button
+                    className={`chat-card ${isSelected ? "selected" : ""} ${isMultiSelected ? "multi-selected" : ""} ${isConfirming ? "slide-left" : ""}`}
+                    draggable
+                    onDragStart={(e) => {
+                      setDragPayload({ type: "chat", chatId: chat.id });
+                      e.dataTransfer.effectAllowed = "move";
+                      e.dataTransfer.setData("text/plain", chat.id);
+                      (e.currentTarget as HTMLElement).classList.add("dragging");
+                    }}
+                    onDragEnd={(e) => {
+                      clearDragPayload();
+                      (e.currentTarget as HTMLElement).classList.remove("dragging");
+                    }}
+                    onClick={(e) => handleChatClick(chat, e)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setConfirmDeleteId(isConfirming ? null : chat.id);
+                    }}
+                  >
+                    <div className="chat-card-title">{chat.title}</div>
+                    {chat.summary && <div className="chat-card-summary">{chat.summary}</div>}
+                    <div className="chat-card-meta">
+                      <span className={`source-badge ${chat.source}`}>{chat.source}</span>
+                      {chat.folder_id && folderMap.get(chat.folder_id) && (
+                        <span className="source-badge folder">{folderMap.get(chat.folder_id)}</span>
+                      )}
+                      <span className="chat-card-date">{dateStr}</span>
+                      {isGenerating && <span className="chat-card-generating">analyzing...</span>}
+                    </div>
+                  </button>
+                  <button
+                    className="chat-card-delete-confirm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDeleteId(null);
+                      onDeleteChat(chat.id);
+                    }}
+                    title="Confirm delete"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               );
             })}
           </div>

@@ -186,11 +186,16 @@ export function useDatabase() {
   }, [refreshChats, selectedChat?.id]);
 
   const deleteChat = useCallback(async (id: string) => {
+    if (selectedChat?.id === id) {
+      const idx = chats.findIndex(c => c.id === id);
+      const next = chats[idx + 1] || chats[idx - 1] || null;
+      setSelectedChat(next);
+    }
     await db.deleteChat(id);
-    if (selectedChat?.id === id) setSelectedChat(null);
     await refreshChats();
     await refreshTags();
-  }, [refreshChats, refreshTags, selectedChat?.id]);
+    await refreshFolders();
+  }, [refreshChats, refreshTags, refreshFolders, selectedChat?.id, chats]);
 
   const createTag = useCallback(async (name: string, parentId?: string, color?: string) => {
     const tag = await db.insertTag(name, parentId, color);

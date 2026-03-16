@@ -127,7 +127,6 @@ interface ChatDetailProps {
   onCreateTag: (name: string) => Promise<void> | void;
   onAddAttachment: (chatId: string, filename: string, filePath: string, mimeType: string | null) => void;
   onRemoveAttachment: (attachmentId: string) => void;
-  onDeleteChat: (id: string) => void;
   onRegenerateField: (chatId: string, field: "title" | "summary" | "tags") => Promise<void>;
   onReparseHtml: (chatId: string) => Promise<void>;
   isResizing?: boolean;
@@ -162,7 +161,7 @@ const sourceLabels: Record<string, string> = { claude: "Claude", perplexity: "Pe
 
 export default function ChatDetail({
   chat, tags, allTags, attachments, onUpdateChat, onClose,
-  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, onDeleteChat, onRegenerateField, onReparseHtml, isResizing,
+  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, onRegenerateField, onReparseHtml, isResizing,
 }: ChatDetailProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(chat.title);
@@ -401,15 +400,6 @@ export default function ChatDetail({
               </svg>
             </button>
           )}
-          <button className="close-btn delete-chat-btn" onClick={() => {
-            if (window.confirm("Delete this chat and all its data?")) {
-              onDeleteChat(chat.id);
-            }
-          }} title="Delete chat">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
           <button className="close-btn" onClick={onClose} title="Close">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
