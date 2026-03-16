@@ -171,6 +171,7 @@ export default function ChatDetail({
   const [tagHighlight, setTagHighlight] = useState(-1);
   const [tocWidth, setTocWidth] = useState(200);
   const [regenerating, setRegenerating] = useState<string | null>(null);
+  const [mdPreview, setMdPreview] = useState<{ filename: string; content: string } | null>(null);
   const [showChatSearch, setShowChatSearch] = useState(false);
   const [chatSearchTerm, setChatSearchTerm] = useState("");
   const [chatSearchIndex, setChatSearchIndex] = useState(0);
@@ -305,6 +306,15 @@ export default function ChatDetail({
 
   const handleOpenAttachment = useCallback(async (att: Attachment) => {
     const ext = att.filename.split(".").pop()?.toLowerCase();
+    if (ext === "md" || ext === "markdown") {
+      try {
+        const content = await readTextFile(att.file_path);
+        setMdPreview({ filename: att.filename, content });
+      } catch (e) {
+        console.error("Failed to read markdown file:", e);
+      }
+      return;
+    }
     if (ext === "html" || ext === "htm") {
       try {
         const html = await readTextFile(att.file_path);
@@ -586,6 +596,27 @@ export default function ChatDetail({
           </div>
         </div>
       </div>
+
+      {/* Markdown preview modal */}
+      {mdPreview && (
+        <div className="expand-modal-overlay" onClick={() => setMdPreview(null)}>
+          <div className="md-preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="expand-modal-header">
+              <span>{mdPreview.filename}</span>
+              <button className="close-btn" onClick={() => setMdPreview(null)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="md-preview-body md-content">
+              <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                {mdPreview.content}
+              </Markdown>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

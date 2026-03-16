@@ -1083,6 +1083,23 @@ html, body, #root {
   word-break: break-word;
 }
 
+.md-preview-modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  width: min(800px, 90vw);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.md-preview-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
 .mermaid-block {
   margin: 12px 0;
   overflow-x: auto;
