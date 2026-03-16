@@ -60,7 +60,7 @@ export default function App() {
   } = useDatabase();
 
   const { mode: themeMode, setThemeMode } = useTheme();
-  const { settings: analysisSettings, update: updateAnalysis, updateFields: updateAnalysisFields, resetPrompt } = useAnalysisSettings();
+  const { settings: analysisSettings, update: updateAnalysis, updateFields: updateAnalysisFields, updateLanguages: updateAnalysisLanguages } = useAnalysisSettings();
   const [showSettings, setShowSettings] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [chatListWidth, setChatListWidth] = useState(260);
@@ -163,7 +163,7 @@ export default function App() {
             analysisSettings={analysisSettings}
             onUpdateAnalysis={updateAnalysis}
             onUpdateAnalysisFields={updateAnalysisFields}
-            onResetPrompt={resetPrompt}
+            onUpdateAnalysisLanguages={updateAnalysisLanguages}
             onClose={() => setShowSettings(false)}
           />
         ) : (

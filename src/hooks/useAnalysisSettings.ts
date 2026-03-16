@@ -1,5 +1,21 @@
 import { useState, useCallback } from "react";
 
+export const LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "it", label: "Italiano" },
+  { code: "es", label: "Español" },
+  { code: "fr", label: "Français" },
+  { code: "de", label: "Deutsch" },
+  { code: "pt", label: "Português" },
+  { code: "nl", label: "Nederlands" },
+  { code: "ja", label: "日本語" },
+  { code: "zh", label: "中文" },
+  { code: "ko", label: "한국어" },
+  { code: "auto", label: "Same as chat" },
+] as const;
+
+export type LangCode = (typeof LANGUAGES)[number]["code"];
+
 export interface AnalysisSettings {
   enabled: boolean;
   tool: "claude-code";
@@ -8,13 +24,13 @@ export interface AnalysisSettings {
     summary: boolean;
     tags: boolean;
   };
-  prompt: string;
+  languages: {
+    title: LangCode;
+    summary: LangCode;
+    tags: LangCode;
+  };
   tagCount: { min: number; max: number };
 }
-
-const DEFAULT_PROMPT = `You are a metadata extractor for an AI chat archive.
-Given the following AI chat transcript, respond ONLY with valid JSON (no markdown, no explanation) in this exact format.
-Reuse existing tags as much as possible before creating new ones.`;
 
 const STORAGE_KEY = "mnemo-analysis-settings";
 
@@ -23,7 +39,7 @@ function getDefaults(): AnalysisSettings {
     enabled: true,
     tool: "claude-code",
     fields: { title: true, summary: true, tags: true },
-    prompt: DEFAULT_PROMPT,
+    languages: { title: "auto", summary: "auto", tags: "en" },
     tagCount: { min: 3, max: 6 },
   };
 }
@@ -33,7 +49,13 @@ function load(): AnalysisSettings {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return { ...getDefaults(), ...parsed, fields: { ...getDefaults().fields, ...parsed.fields }, tagCount: { ...getDefaults().tagCount, ...parsed.tagCount } };
+      return {
+        ...getDefaults(),
+        ...parsed,
+        fields: { ...getDefaults().fields, ...parsed.fields },
+        languages: { ...getDefaults().languages, ...parsed.languages },
+        tagCount: { ...getDefaults().tagCount, ...parsed.tagCount },
+      };
     }
   } catch {
     // ignore
@@ -64,13 +86,13 @@ export function useAnalysisSettings() {
     });
   }, []);
 
-  const resetPrompt = useCallback(() => {
+  const updateLanguages = useCallback((languages: Partial<AnalysisSettings["languages"]>) => {
     setSettings((prev) => {
-      const next = { ...prev, prompt: DEFAULT_PROMPT };
+      const next = { ...prev, languages: { ...prev.languages, ...languages } };
       save(next);
       return next;
     });
   }, []);
 
-  return { settings, update, updateFields, resetPrompt };
+  return { settings, update, updateFields, updateLanguages };
 }

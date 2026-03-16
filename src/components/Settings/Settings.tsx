@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ThemeMode } from "../../hooks/useTheme";
-import type { AnalysisSettings } from "../../hooks/useAnalysisSettings";
+import type { AnalysisSettings, LangCode } from "../../hooks/useAnalysisSettings";
+import { LANGUAGES } from "../../hooks/useAnalysisSettings";
 import { bookmarklets } from "../../lib/bookmarklets";
 
 interface SettingsProps {
@@ -9,7 +10,7 @@ interface SettingsProps {
   analysisSettings: AnalysisSettings;
   onUpdateAnalysis: (updates: Partial<AnalysisSettings>) => void;
   onUpdateAnalysisFields: (fields: Partial<AnalysisSettings["fields"]>) => void;
-  onResetPrompt: () => void;
+  onUpdateAnalysisLanguages: (languages: Partial<AnalysisSettings["languages"]>) => void;
   onClose: () => void;
 }
 
@@ -19,9 +20,23 @@ const themes: { value: ThemeMode; label: string; icon: string }[] = [
   { value: "system", label: "System", icon: "\u2699" },
 ];
 
+function LangSelect({ value, onChange }: { value: LangCode; onChange: (v: LangCode) => void }) {
+  return (
+    <select
+      className="settings-lang-select"
+      value={value}
+      onChange={(e) => onChange(e.target.value as LangCode)}
+    >
+      {LANGUAGES.map((l) => (
+        <option key={l.code} value={l.code}>{l.label}</option>
+      ))}
+    </select>
+  );
+}
+
 export default function Settings({
   themeMode, onSetTheme,
-  analysisSettings, onUpdateAnalysis, onUpdateAnalysisFields, onResetPrompt,
+  analysisSettings, onUpdateAnalysis, onUpdateAnalysisFields, onUpdateAnalysisLanguages,
   onClose,
 }: SettingsProps) {
   const [copied, setCopied] = useState<string | null>(null);
@@ -65,7 +80,6 @@ export default function Settings({
         <div className="settings-section">
           <h3>AI Analysis</h3>
 
-          {/* Enable/disable */}
           <label className="settings-toggle">
             <input
               type="checkbox"
@@ -76,7 +90,7 @@ export default function Settings({
           </label>
 
           {analysisSettings.enabled && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 14 }}>
               {/* Tool */}
               <div>
                 <label className="settings-label">Tool</label>
@@ -89,22 +103,37 @@ export default function Settings({
                 </select>
               </div>
 
-              {/* Fields */}
+              {/* Fields + language per field */}
               <div>
                 <label className="settings-label">Fields to generate</label>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  <label className="settings-toggle">
-                    <input type="checkbox" checked={analysisSettings.fields.title} onChange={(e) => onUpdateAnalysisFields({ title: e.target.checked })} />
-                    <span>Title</span>
-                  </label>
-                  <label className="settings-toggle">
-                    <input type="checkbox" checked={analysisSettings.fields.summary} onChange={(e) => onUpdateAnalysisFields({ summary: e.target.checked })} />
-                    <span>Summary</span>
-                  </label>
-                  <label className="settings-toggle">
-                    <input type="checkbox" checked={analysisSettings.fields.tags} onChange={(e) => onUpdateAnalysisFields({ tags: e.target.checked })} />
-                    <span>Tags</span>
-                  </label>
+                <div className="settings-field-rows">
+                  <div className="settings-field-row">
+                    <label className="settings-toggle">
+                      <input type="checkbox" checked={analysisSettings.fields.title} onChange={(e) => onUpdateAnalysisFields({ title: e.target.checked })} />
+                      <span>Title</span>
+                    </label>
+                    {analysisSettings.fields.title && (
+                      <LangSelect value={analysisSettings.languages.title} onChange={(v) => onUpdateAnalysisLanguages({ title: v })} />
+                    )}
+                  </div>
+                  <div className="settings-field-row">
+                    <label className="settings-toggle">
+                      <input type="checkbox" checked={analysisSettings.fields.summary} onChange={(e) => onUpdateAnalysisFields({ summary: e.target.checked })} />
+                      <span>Summary</span>
+                    </label>
+                    {analysisSettings.fields.summary && (
+                      <LangSelect value={analysisSettings.languages.summary} onChange={(v) => onUpdateAnalysisLanguages({ summary: v })} />
+                    )}
+                  </div>
+                  <div className="settings-field-row">
+                    <label className="settings-toggle">
+                      <input type="checkbox" checked={analysisSettings.fields.tags} onChange={(e) => onUpdateAnalysisFields({ tags: e.target.checked })} />
+                      <span>Tags</span>
+                    </label>
+                    {analysisSettings.fields.tags && (
+                      <LangSelect value={analysisSettings.languages.tags} onChange={(v) => onUpdateAnalysisLanguages({ tags: v })} />
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -131,25 +160,6 @@ export default function Settings({
                   </div>
                 </div>
               )}
-
-              {/* Prompt */}
-              <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                  <label className="settings-label" style={{ marginBottom: 0 }}>Prompt</label>
-                  <button
-                    onClick={onResetPrompt}
-                    style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 11 }}
-                  >
-                    Reset to default
-                  </button>
-                </div>
-                <textarea
-                  className="settings-textarea"
-                  value={analysisSettings.prompt}
-                  onChange={(e) => onUpdateAnalysis({ prompt: e.target.value })}
-                  rows={6}
-                />
-              </div>
             </div>
           )}
         </div>

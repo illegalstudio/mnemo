@@ -1,30 +1,52 @@
 import { Command } from "@tauri-apps/plugin-shell";
 import type { MetadataResult } from "../types";
 import type { AnalysisSettings } from "../hooks/useAnalysisSettings";
+import { LANGUAGES } from "../hooks/useAnalysisSettings";
+
+function langName(code: string): string {
+  const lang = LANGUAGES.find((l) => l.code === code);
+  if (!lang || code === "auto") return "the same language as the chat";
+  return lang.label;
+}
 
 function buildPrompt(settings: AnalysisSettings, existingTags: string[]): string {
   const fields: string[] = [];
+  const langInstructions: string[] = [];
+
   if (settings.fields.title) {
     fields.push(`  "title": "concise title describing the main topic (max 60 chars)"`);
+    langInstructions.push(`- Title must be in ${langName(settings.languages.title)}`);
   }
   if (settings.fields.summary) {
     fields.push(`  "summary": "2-3 sentence summary of what was discussed"`);
+    langInstructions.push(`- Summary must be in ${langName(settings.languages.summary)}`);
   }
   if (settings.fields.tags) {
     fields.push(`  "tags": ["tag1", "tag2", "tag3"]`);
+    langInstructions.push(`- Tags must be in ${langName(settings.languages.tags)}`);
   }
 
   if (fields.length === 0) return "";
 
-  let tagInstruction = "";
+  let prompt = `You are a metadata extractor for an AI chat archive.
+Given the following AI chat transcript, respond ONLY with valid JSON (no markdown, no explanation) in this exact format:
+{
+${fields.join(",\n")}
+}`;
+
   if (settings.fields.tags) {
-    tagInstruction = `\nProvide ${settings.tagCount.min}-${settings.tagCount.max} lowercase tags using hyphens not spaces.`;
+    prompt += `\nProvide ${settings.tagCount.min}-${settings.tagCount.max} lowercase tags using hyphens not spaces.`;
+    prompt += `\nReuse existing tags as much as possible before creating new ones.`;
     if (existingTags.length > 0) {
-      tagInstruction += `\nExisting tags: ${existingTags.join(", ")}. Reuse existing tags as much as possible before creating new ones.`;
+      prompt += `\nExisting tags: ${existingTags.join(", ")}.`;
     }
   }
 
-  return `${settings.prompt}\n{\n${fields.join(",\n")}\n}${tagInstruction}`;
+  if (langInstructions.length > 0) {
+    prompt += `\n\nLanguage requirements:\n${langInstructions.join("\n")}`;
+  }
+
+  return prompt;
 }
 
 export async function generateMetadata(
@@ -39,7 +61,6 @@ export async function generateMetadata(
     const prompt = buildPrompt(settings, existingTags);
     if (!prompt) return null;
 
-    // Truncate content to avoid exceeding CLI argument limits
     const truncated = contentMd.length > 8000 ? contentMd.slice(0, 8000) + "\n\n[truncated]" : contentMd;
     const fullPrompt = `${prompt}\n\nHere is the chat transcript:\n\n${truncated}`;
 
@@ -74,7 +95,6 @@ export async function generateMetadata(
       }
     }
 
-    // Extract the actual result from Claude CLI format
     const obj = parsed as Record<string, unknown>;
     let result: Partial<MetadataResult>;
 
@@ -103,7 +123,6 @@ export async function generateMetadata(
       return null;
     }
 
-    // Only return fields that were requested
     const filtered: Partial<MetadataResult> = {};
     if (settings.fields.title && result.title) filtered.title = result.title;
     if (settings.fields.summary && result.summary) filtered.summary = result.summary;
