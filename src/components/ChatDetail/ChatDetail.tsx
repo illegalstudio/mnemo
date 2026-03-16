@@ -34,13 +34,51 @@ function MermaidBlock({ code }: { code: string }) {
   return <div ref={ref} className="mermaid-block" dangerouslySetInnerHTML={{ __html: svg }} />;
 }
 
+const MAX_H1_LENGTH = 200;
+
+function CollapsibleH1({ children, id }: { children: React.ReactNode; id: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const text = getTextContent(children);
+  const isLong = text.length > MAX_H1_LENGTH;
+
+  if (!isLong) {
+    return <h1 id={id}>{children}</h1>;
+  }
+
+  return (
+    <>
+      <h1 id={id}>
+        {text.slice(0, MAX_H1_LENGTH)}...
+        <button className="expand-msg-btn" onClick={() => setExpanded(true)}>
+          Show full message
+        </button>
+      </h1>
+      {expanded && (
+        <div className="expand-modal-overlay" onClick={() => setExpanded(false)}>
+          <div className="expand-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="expand-modal-header">
+              <span>Full message</span>
+              <button className="close-btn" onClick={() => setExpanded(false)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="expand-modal-body">{text}</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 const MemoizedMarkdown = memo(function MemoizedMarkdown({ content, contentRef }: { content: string; contentRef: React.RefObject<HTMLDivElement | null> }) {
   return (
     <Markdown
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[rehypeRaw]}
       components={{
-        h1: ({ children, ...props }) => <h1 id={slugify(getTextContent(children))} {...props}>{children}</h1>,
+        h1: ({ children }) => <CollapsibleH1 id={slugify(getTextContent(children))}>{children}</CollapsibleH1>,
         h2: ({ children, ...props }) => <h2 id={slugify(getTextContent(children))} {...props}>{children}</h2>,
         h3: ({ children, ...props }) => <h3 id={slugify(getTextContent(children))} {...props}>{children}</h3>,
         a: ({ children, href, ...props }) => {
