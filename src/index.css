@@ -120,7 +120,7 @@ html, body, #root {
   display: flex;
   height: 100%;
   overflow: hidden;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 2px solid var(--border);
 }
 
 /* ---- RESIZE HANDLE ---- */
