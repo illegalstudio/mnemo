@@ -935,12 +935,15 @@ html, body, #root {
 }
 
 .md-content h1 {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 600;
   color: var(--text-primary);
-  margin: 28px 0 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
+  margin: 28px 0 8px;
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+  border-radius: 8px;
+  border: none;
+  border-left: 3px solid var(--accent);
 }
 
 .md-content h2 {

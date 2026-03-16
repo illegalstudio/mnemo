@@ -147,6 +147,7 @@ export function convertHtmlToMarkdown(raw: string): {
       const rest = lines.slice(1).join("\n").trim();
       md += `# ${firstLine}\n\n`;
       if (rest) md += `${rest}\n\n`;
+      md += `---\n\n`;
     } else {
       // Downshift all headings in AI responses: H1->H2, H2->H3, H3->H4
       const shifted = turnMd
