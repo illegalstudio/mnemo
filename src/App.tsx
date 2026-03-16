@@ -61,20 +61,58 @@ export default function App() {
     addTagToChat, removeTagFromChat, addAttachment, removeAttachment,
     toggleTag, selectTag, clearTags, selectSource, search,
     createFolder, renameFolder, deleteFolder: deleteFolderCb, moveChatToFolder, moveFolderToParent, selectFolder,
+    trashChats, showTrash, setShowTrash, restoreChat, permanentlyDeleteChat, emptyTrash, refreshTrash,
   } = useDatabase();
 
   const { mode: themeMode, setThemeMode } = useTheme();
   const { settings: analysisSettings, update: updateAnalysis, updateFields: updateAnalysisFields, updateLanguages: updateAnalysisLanguages } = useAnalysisSettings();
   const [showSettings, setShowSettings] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<import("./components/Sidebar/Sidebar").ActiveFilters>({
+    hasAttachment: false, hasSummary: false, createdAfter: "", createdBefore: "",
+  });
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [chatListWidth, setChatListWidth] = useState(260);
   const [isResizing, setIsResizing] = useState(false);
+  const sidebarWidthRef = useRef(sidebarWidth);
+  const chatListWidthRef = useRef(chatListWidth);
+  sidebarWidthRef.current = sidebarWidth;
+  chatListWidthRef.current = chatListWidth;
+
+  // Load column widths from DB settings after DB is ready
+  useEffect(() => {
+    if (loading) return;
+    (async () => {
+      const [sw, cw] = await Promise.all([
+        db.getSetting("sidebar-width"),
+        db.getSetting("chatlist-width"),
+      ]);
+      if (sw) setSidebarWidth(Number(sw));
+      if (cw) setChatListWidth(Number(cw));
+    })();
+  }, [loading]);
+
+  // Apply filters to chat list
+  const filteredChats = useMemo(() => {
+    let result = chats;
+    if (activeFilters.hasAttachment) {
+      result = result.filter(c => (c.attachment_count ?? 0) > 0);
+    }
+    if (activeFilters.hasSummary) {
+      result = result.filter(c => c.summary && c.summary.trim().length > 0);
+    }
+    if (activeFilters.createdAfter) {
+      result = result.filter(c => c.imported_at >= activeFilters.createdAfter);
+    }
+    if (activeFilters.createdBefore) {
+      result = result.filter(c => c.imported_at <= activeFilters.createdBefore + "T23:59:59");
+    }
+    return result;
+  }, [chats, activeFilters]);
 
   const folderMap = useMemo(() => new Map((folders ?? []).map(f => [f.id, f.name])), [folders]);
 
   const handleResizeStart = useCallback(() => setIsResizing(true), []);
-  const handleResizeEnd = useCallback(() => setIsResizing(false), []);
 
   const handleFileOpen = useCallback(async () => {
     const selected = await open({ multiple: true, filters: [{ name: "Markdown", extensions: ["md"] }] });
@@ -177,8 +215,18 @@ export default function App() {
     setSidebarWidth((w) => Math.max(180, Math.min(400, w + delta)));
   }, []);
 
+  const handleSidebarResizeEnd = useCallback(() => {
+    setIsResizing(false);
+    db.setSetting("sidebar-width", String(sidebarWidthRef.current));
+  }, []);
+
   const handleChatListResize = useCallback((delta: number) => {
     setChatListWidth((w) => Math.max(200, Math.min(500, w + delta)));
+  }, []);
+
+  const handleChatListResizeEnd = useCallback(() => {
+    setIsResizing(false);
+    db.setSetting("chatlist-width", String(chatListWidthRef.current));
   }, []);
 
   if (loading) {
@@ -205,11 +253,15 @@ export default function App() {
                 onRenameFolder={renameFolder} onDeleteFolder={deleteFolderCb}
                 onMoveChatToFolder={moveChatToFolder}
                 onMoveFolderToParent={moveFolderToParent}
+                trashCount={trashChats.length}
+                onShowTrash={() => { setShowTrash(true); refreshTrash(); }}
+                activeFilters={activeFilters}
+                onSetFilters={setActiveFilters}
                 onOpenSettings={() => setShowSettings(true)}
                 onImportClick={handleFileOpen}
               />
             </div>
-            <ResizeHandle onResize={handleSidebarResize} onResizeStart={handleResizeStart} onResizeEnd={handleResizeEnd} />
+            <ResizeHandle onResize={handleSidebarResize} onResizeStart={handleResizeStart} onResizeEnd={handleSidebarResizeEnd} />
           </>
         )}
         {showSettings ? (
@@ -222,6 +274,48 @@ export default function App() {
             onUpdateAnalysisLanguages={updateAnalysisLanguages}
             onClose={() => setShowSettings(false)}
           />
+        ) : showTrash ? (
+          <div className="settings-panel">
+            <div className="settings-panel-header">
+              <h2>Trash</h2>
+              <div style={{ display: "flex", gap: 8 }}>
+                {trashChats.length > 0 && (
+                  <button className="snapshot-restore-btn" style={{ color: "var(--red)", borderColor: "var(--red)" }} onClick={emptyTrash}>Empty Trash</button>
+                )}
+                <button className="close-btn" onClick={() => setShowTrash(false)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="settings-scroll">
+              {trashChats.length === 0 ? (
+                <div style={{ textAlign: "center", color: "var(--text-faint)", padding: 40, fontSize: 13 }}>Trash is empty</div>
+              ) : (
+                <div style={{ maxWidth: 600, margin: "0 auto" }}>
+                  <p style={{ fontSize: 12, color: "var(--text-faint)", marginBottom: 16 }}>Chats are permanently deleted after 30 days.</p>
+                  {trashChats.map((chat) => {
+                    const deletedDate = chat.deleted_at ? new Date(chat.deleted_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+                    return (
+                      <div key={chat.id} className="snapshot-row" style={{ marginBottom: 4 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{chat.title}</div>
+                          <div style={{ fontSize: 11, color: "var(--text-faint)" }}>Deleted {deletedDate}</div>
+                        </div>
+                        <button className="snapshot-restore-btn" onClick={() => restoreChat(chat.id)}>Restore</button>
+                        <button className="snapshot-action danger" onClick={() => permanentlyDeleteChat(chat.id)} title="Delete permanently">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
           <>
             {!focusMode && (
@@ -230,7 +324,7 @@ export default function App() {
                 style={selectedChat ? { width: chatListWidth, minWidth: chatListWidth } : undefined}
               >
                 <ChatList
-                  chats={chats} selectedChatId={selectedChat?.id ?? null}
+                  chats={filteredChats} selectedChatId={selectedChat?.id ?? null}
                   generatingMetadata={generatingMetadata}
                   folderMap={folderMap}
                   onSelectChat={setSelectedChat}
@@ -242,7 +336,7 @@ export default function App() {
             )}
             {selectedChat && (
               <>
-                {!focusMode && <ResizeHandle onResize={handleChatListResize} onResizeStart={handleResizeStart} onResizeEnd={handleResizeEnd} />}
+                {!focusMode && <ResizeHandle onResize={handleChatListResize} onResizeStart={handleResizeStart} onResizeEnd={handleChatListResizeEnd} />}
                 <ChatDetail
                   chat={selectedChat} tags={selectedChatTags} allTags={tags}
                   attachments={selectedChatAttachments}
