@@ -87,6 +87,15 @@ export default function ChatDetail({
     setChatSearchTerm("");
   }, [chat.id]);
 
+  // Sync local state when chat data changes externally (e.g. after analysis)
+  useEffect(() => {
+    if (!editingTitle) setTitleValue(chat.title);
+  }, [chat.title]);
+
+  useEffect(() => {
+    setSummaryValue(chat.summary || "");
+  }, [chat.summary]);
+
   // Cmd+F to open in-chat search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
