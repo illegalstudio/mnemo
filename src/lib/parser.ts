@@ -103,5 +103,6 @@ export function parseImportFile(
     chat_date: null,
     folder_id: null,
     deleted_at: null,
+    favorite: 0,
   };
 }

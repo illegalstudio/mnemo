@@ -9,6 +9,7 @@ export interface Chat {
   chat_date: string | null;
   folder_id: string | null;
   deleted_at: string | null;
+  favorite: number;
   attachment_count?: number;
 }
 

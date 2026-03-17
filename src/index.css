@@ -455,25 +455,37 @@ html, body, #root {
   overflow: hidden;
 }
 
-.chat-card-delete-confirm {
+.chat-card-actions {
   position: absolute;
   right: 0;
   top: 0;
   bottom: 0;
-  width: 48px;
-  background: var(--red);
-  border: none;
-  color: white;
-  cursor: pointer;
   display: flex;
-  align-items: center;
-  justify-content: center;
   opacity: 0;
   transition: opacity 0.2s;
 }
 
-.chat-card-wrapper:has(.slide-left) .chat-card-delete-confirm {
+.chat-card-wrapper:has(.slide-left) .chat-card-actions {
   opacity: 1;
+}
+
+.chat-card-action-btn {
+  width: 44px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-card-action-btn.favorite {
+  background: var(--orange);
+  color: white;
+}
+
+.chat-card-action-btn.delete {
+  background: var(--red);
+  color: white;
 }
 
 /* Chat card */
@@ -493,7 +505,7 @@ html, body, #root {
 }
 
 .chat-card.slide-left {
-  transform: translateX(-48px);
+  transform: translateX(-88px);
 }
 
 .chat-card:hover { background: var(--bg-hover); }
@@ -570,6 +582,12 @@ html, body, #root {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.chat-card-star {
+  color: var(--orange);
+  margin-right: 4px;
+  font-size: 12px;
 }
 
 .source-badge.folder { background: var(--accent-subtle); color: var(--accent); }

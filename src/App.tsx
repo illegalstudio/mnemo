@@ -56,7 +56,7 @@ export default function App() {
   const {
     chats, recentChats, tags, folders, unfiledCount, selectedChat, selectedChatTags, selectedChatAttachments,
     searchQuery, selectedTagIds, selectedSource, selectedFolderId, loading, generatingMetadata,
-    setSelectedChat, importFile, updateChat, deleteChat,
+    setSelectedChat, importFile, updateChat, toggleFavorite, deleteChat,
     createTag, updateTag, deleteTag,
     addTagToChat, removeTagFromChat, addAttachment, removeAttachment,
     toggleTag, selectTag, clearTags, selectSource, search,
@@ -69,7 +69,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [activeFilters, setActiveFilters] = useState<import("./components/Sidebar/Sidebar").ActiveFilters>({
-    hasAttachment: false, hasSummary: false, createdAfter: "", createdBefore: "",
+    favorites: false, hasAttachment: false, hasSummary: false, createdAfter: "", createdBefore: "",
   });
   const [sidebarWidth, setSidebarWidth] = useState(240);
   const [chatListWidth, setChatListWidth] = useState(260);
@@ -95,6 +95,9 @@ export default function App() {
   // Apply filters to chat list
   const filteredChats = useMemo(() => {
     let result = chats;
+    if (activeFilters.favorites) {
+      result = result.filter(c => c.favorite);
+    }
     if (activeFilters.hasAttachment) {
       result = result.filter(c => (c.attachment_count ?? 0) > 0);
     }
@@ -331,6 +334,7 @@ export default function App() {
                   onFocusChat={(chat: Chat) => { setSelectedChat(chat); setFocusMode(true); }}
                   onImport={handleImport}
                   onDeleteChat={deleteChat}
+                  onToggleFavorite={toggleFavorite}
                 />
               </div>
             )}

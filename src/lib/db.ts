@@ -98,6 +98,13 @@ export async function initDb(): Promise<Database> {
     // Column already exists
   }
 
+  // Migration: add favorite column
+  try {
+    await instance.execute("ALTER TABLE chats ADD COLUMN favorite INTEGER DEFAULT 0");
+  } catch {
+    // Column already exists
+  }
+
   // Purge chats in trash older than 30 days
   await instance.execute(
     "DELETE FROM chats WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', '-30 days')"
@@ -243,6 +250,14 @@ export async function updateChat(id: string, updates: Partial<Chat>): Promise<vo
       });
     }
   }
+}
+
+export async function toggleFavorite(id: string): Promise<boolean> {
+  const d = await getDb();
+  const rows = await d.select<{ favorite: number }[]>("SELECT favorite FROM chats WHERE id = ?", [id]);
+  const newVal = (rows[0]?.favorite ?? 0) ? 0 : 1;
+  await d.execute("UPDATE chats SET favorite = ? WHERE id = ?", [newVal, id]);
+  return newVal === 1;
 }
 
 export async function deleteChat(id: string): Promise<void> {

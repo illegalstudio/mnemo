@@ -37,6 +37,7 @@ interface SidebarProps {
 }
 
 export interface ActiveFilters {
+  favorites: boolean;
   hasAttachment: boolean;
   hasSummary: boolean;
   createdAfter: string; // ISO date or ""
@@ -187,12 +188,16 @@ export function Sidebar({
               <ChevronIcon expanded={!collapsed.filters} />
               Filters
             </span>
-            {(activeFilters.hasAttachment || activeFilters.hasSummary || activeFilters.createdAfter || activeFilters.createdBefore) && (
+            {(activeFilters.favorites || activeFilters.hasAttachment || activeFilters.hasSummary || activeFilters.createdAfter || activeFilters.createdBefore) && (
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", flexShrink: 0 }} />
             )}
           </div>
           {!collapsed.filters && (
             <div className="sidebar-filters">
+              <label className="sidebar-filter-check">
+                <input type="checkbox" checked={activeFilters.favorites} onChange={(e) => onSetFilters({ ...activeFilters, favorites: e.target.checked })} />
+                ★ Favorites
+              </label>
               <label className="sidebar-filter-check">
                 <input type="checkbox" checked={activeFilters.hasAttachment} onChange={(e) => onSetFilters({ ...activeFilters, hasAttachment: e.target.checked })} />
                 Has attachment
@@ -209,8 +214,8 @@ export function Sidebar({
                 <label className="sidebar-filter-label">Before</label>
                 <input type="date" className="sidebar-filter-date" value={activeFilters.createdBefore} onChange={(e) => onSetFilters({ ...activeFilters, createdBefore: e.target.value })} />
               </div>
-              {(activeFilters.hasAttachment || activeFilters.hasSummary || activeFilters.createdAfter || activeFilters.createdBefore) && (
-                <button onClick={() => onSetFilters({ hasAttachment: false, hasSummary: false, createdAfter: "", createdBefore: "" })} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 11, padding: "2px 8px" }}>Clear filters</button>
+              {(activeFilters.favorites || activeFilters.hasAttachment || activeFilters.hasSummary || activeFilters.createdAfter || activeFilters.createdBefore) && (
+                <button onClick={() => onSetFilters({ favorites: false, hasAttachment: false, hasSummary: false, createdAfter: "", createdBefore: "" })} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 11, padding: "2px 8px" }}>Clear filters</button>
               )}
             </div>
           )}

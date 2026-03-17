@@ -192,6 +192,14 @@ export function useDatabase() {
     }
   }, [refreshChats, selectedChat?.id]);
 
+  const toggleFavorite = useCallback(async (id: string) => {
+    await db.toggleFavorite(id);
+    await refreshChats();
+    if (selectedChat?.id === id) {
+      setSelectedChat(prev => prev ? { ...prev, favorite: prev.favorite ? 0 : 1 } : null);
+    }
+  }, [refreshChats, selectedChat?.id]);
+
   const deleteChat = useCallback(async (id: string) => {
     if (selectedChat?.id === id) {
       const idx = chats.findIndex(c => c.id === id);
@@ -372,6 +380,7 @@ export function useDatabase() {
     setSelectedChat,
     importFile,
     updateChat,
+    toggleFavorite,
     deleteChat,
     createTag,
     updateTag,

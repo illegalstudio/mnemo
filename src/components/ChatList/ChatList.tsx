@@ -11,10 +11,11 @@ interface ChatListProps {
   onFocusChat: (chat: Chat) => void;
   onImport: (files: { name: string; content: string }[]) => void;
   onDeleteChat: (id: string) => void;
+  onToggleFavorite: (id: string) => void;
 }
 
 export default function ChatList({
-  chats, selectedChatId, generatingMetadata, folderMap, onSelectChat, onFocusChat, onImport, onDeleteChat,
+  chats, selectedChatId, generatingMetadata, folderMap, onSelectChat, onFocusChat, onImport, onDeleteChat, onToggleFavorite,
 }: ChatListProps) {
   const [sortBy, setSortBy] = useState<"imported_at" | "chat_date" | "title">("imported_at");
   const [isDragging, setIsDragging] = useState(false);
@@ -182,7 +183,10 @@ export default function ChatList({
                       setConfirmDeleteId(isConfirming ? null : chat.id);
                     }}
                   >
-                    <div className="chat-card-title">{chat.title}</div>
+                    <div className="chat-card-title">
+                      {chat.favorite ? <span className="chat-card-star">★</span> : null}
+                      {chat.title}
+                    </div>
                     {chat.summary && <div className="chat-card-summary">{chat.summary}</div>}
                     <div className="chat-card-meta">
                       <span className={`source-badge ${chat.source}`}>{chat.source}</span>
@@ -193,19 +197,32 @@ export default function ChatList({
                       {isGenerating && <span className="chat-card-generating">analyzing...</span>}
                     </div>
                   </button>
-                  <button
-                    className="chat-card-delete-confirm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfirmDeleteId(null);
-                      onDeleteChat(chat.id);
-                    }}
-                    title="Confirm delete"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <div className="chat-card-actions">
+                    <button
+                      className="chat-card-action-btn favorite"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDeleteId(null);
+                        onToggleFavorite(chat.id);
+                      }}
+                      title={chat.favorite ? "Remove from favorites" : "Add to favorites"}
+                    >
+                      <span style={{ fontSize: 16 }}>{chat.favorite ? "★" : "☆"}</span>
+                    </button>
+                    <button
+                      className="chat-card-action-btn delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmDeleteId(null);
+                        onDeleteChat(chat.id);
+                      }}
+                      title="Delete"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               );
             })}
