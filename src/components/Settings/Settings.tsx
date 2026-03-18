@@ -65,6 +65,12 @@ export default function Settings({
 
   useEffect(() => { loadSnapshots(); }, [loadSnapshots]);
 
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
   const handleCreateSnapshot = async () => {
     try {
       await closeDb();

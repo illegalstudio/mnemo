@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import type { Chat } from "./types";
 import { isMnemoHtmlPaste, convertHtmlToMarkdown, reparseHtml } from "./lib/html-parser";
 import { generateSingleField } from "./lib/metadata";
@@ -178,28 +177,6 @@ export default function App() {
     }
   }, [chats, updateChat]);
 
-  // Deep link handler: mnemo://import — read clipboard and import
-  useEffect(() => {
-    if (loading) return;
-    const unlisten = onOpenUrl((urls) => {
-      for (const url of urls) {
-        if (url.startsWith("mnemo://import")) {
-          navigator.clipboard.readText().then((text) => {
-            if (!text || text.length < 50) return;
-            if (isMnemoHtmlPaste(text)) {
-              const { title, content, source } = convertHtmlToMarkdown(text);
-              importFile(title + ".md", content, text, source, analysisSettings, selectedFolderId);
-            } else if (text.includes("# ") || text.includes("## ")) {
-              const firstLine = text.split("\n")[0].replace(/^#\s+/, "").trim();
-              importFile((firstLine || "Pasted Chat") + ".md", text, undefined, undefined, analysisSettings, selectedFolderId);
-            }
-          }).catch(console.error);
-        }
-      }
-    });
-    return () => { unlisten.then(fn => fn()); };
-  }, [loading, importFile, analysisSettings, selectedFolderId]);
-
   // Cmd+Shift+F to focus global search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -231,6 +208,7 @@ export default function App() {
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
 
       const text = e.clipboardData?.getData("text/plain");
+      console.log("[paste] length:", text?.length, "starts:", text?.substring(0, 80));
       if (!text || text.length < 50) return;
 
       e.preventDefault();

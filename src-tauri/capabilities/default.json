@@ -65,7 +65,6 @@
         { "path": "**" }
       ]
     },
-    "deep-link:default",
     "core:window:allow-create",
     "core:webview:allow-create-webview-window"
   ]

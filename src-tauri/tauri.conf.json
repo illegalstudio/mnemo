@@ -43,11 +43,6 @@
     },
     "shell": {
       "open": true
-    },
-    "deep-link": {
-      "desktop": {
-        "schemes": ["mnemo"]
-      }
     }
   }
 }
