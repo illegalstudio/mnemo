@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(dirname "$SCRIPT_DIR")"
+SRC="$ROOT/src"
+
+VERSION=$(grep '"version"' "$SRC/manifest.json" | sed 's/.*: *"\(.*\)".*/\1/')
+DIST="$ROOT/dist"
+OUT="$DIST/mnemo-chrome-${VERSION}.zip"
+
+mkdir -p "$DIST"
+rm -f "$OUT"
+
+cd "$SRC"
+zip -r "$OUT" . -x "*.DS_Store" "generate-icons.html"
+
+echo "Built: $OUT (v${VERSION})"
