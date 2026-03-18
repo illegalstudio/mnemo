@@ -1,0 +1,27 @@
+#!/bin/bash
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGINS_DIR="$(dirname "$SCRIPT_DIR")"
+CHROME_SRC="$PLUGINS_DIR/chrome/src"
+SAFARI_OUT="$PLUGINS_DIR/safari"
+
+if ! command -v xcrun &> /dev/null; then
+  echo "Error: xcrun not found. Install Xcode from the App Store first."
+  exit 1
+fi
+
+echo "Converting Chrome extension to Safari..."
+xcrun safari-web-extension-converter "$CHROME_SRC" \
+  --project-location "$SAFARI_OUT" \
+  --app-name "Save to Mnemo" \
+  --bundle-identifier studio.illegal.mnemo.safari-extension \
+  --no-open
+
+echo ""
+echo "Safari extension project created at: $SAFARI_OUT"
+echo ""
+echo "Next steps:"
+echo "  1. Open the Xcode project:  open $SAFARI_OUT/*.xcodeproj"
+echo "  2. Build & Run (Cmd+R)"
+echo "  3. Enable in Safari → Settings → Extensions"
