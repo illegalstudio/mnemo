@@ -208,7 +208,6 @@ export default function App() {
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
 
       const text = e.clipboardData?.getData("text/plain");
-      console.log("[paste] length:", text?.length, "starts:", text?.substring(0, 80));
       if (!text || text.length < 50) return;
 
       e.preventDefault();
