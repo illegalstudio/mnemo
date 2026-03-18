@@ -49,6 +49,7 @@ const sources: { value: Source | null; label: string }[] = [
   { value: "claude", label: "Claude" },
   { value: "perplexity", label: "Perplexity" },
   { value: "chatgpt", label: "ChatGPT" },
+  { value: "grok", label: "Grok" },
   { value: "other", label: "Other" },
 ];
 
@@ -56,6 +57,7 @@ const sourceColors: Record<string, string> = {
   claude: "var(--source-claude)",
   perplexity: "var(--source-perplexity)",
   chatgpt: "var(--source-chatgpt)",
+  grok: "var(--source-grok)",
   other: "var(--source-other)",
 };
 

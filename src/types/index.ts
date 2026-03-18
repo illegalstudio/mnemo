@@ -1,8 +1,10 @@
+export type Source = "claude" | "perplexity" | "chatgpt" | "grok" | "other";
+
 export interface Chat {
   id: string;
   title: string;
   summary: string | null;
-  source: "claude" | "perplexity" | "chatgpt" | "other";
+  source: Source;
   content_md: string;
   content_html: string | null;
   imported_at: string;
@@ -39,8 +41,6 @@ export interface Attachment {
   mime_type: string | null;
   attached_at: string;
 }
-
-export type Source = "claude" | "perplexity" | "chatgpt" | "other";
 
 export interface MetadataResult {
   title: string;

@@ -45,6 +45,8 @@
   --source-perplexity-bg: rgba(37, 99, 235, 0.08);
   --source-chatgpt: #16a34a;
   --source-chatgpt-bg: rgba(22, 163, 74, 0.08);
+  --source-grok: #1d9bf0;
+  --source-grok-bg: rgba(29, 155, 240, 0.08);
   --source-other: #6b7280;
   --source-other-bg: rgba(107, 114, 128, 0.08);
 }
@@ -85,6 +87,8 @@
   --source-perplexity-bg: rgba(96, 165, 250, 0.1);
   --source-chatgpt: #4ade80;
   --source-chatgpt-bg: rgba(74, 222, 128, 0.1);
+  --source-grok: #1d9bf0;
+  --source-grok-bg: rgba(29, 155, 240, 0.1);
   --source-other: #7d8694;
   --source-other-bg: rgba(125, 134, 148, 0.1);
 }
@@ -623,6 +627,7 @@ html, body, #root {
 .source-badge.claude { background: var(--source-claude-bg); color: var(--source-claude); }
 .source-badge.perplexity { background: var(--source-perplexity-bg); color: var(--source-perplexity); }
 .source-badge.chatgpt { background: var(--source-chatgpt-bg); color: var(--source-chatgpt); }
+.source-badge.grok { background: var(--source-grok-bg); color: var(--source-grok); }
 .source-badge.other { background: var(--source-other-bg); color: var(--source-other); }
 
 /* Empty state */

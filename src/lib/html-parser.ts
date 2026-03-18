@@ -72,6 +72,32 @@ function extractTurns(doc: Document, source: Source): Turn[] {
     });
     items.sort((a, b) => a.idx - b.idx);
     items.forEach((item) => turns.push({ role: item.role, el: item.el }));
+  } else if (source === "grok") {
+    // Grok: message bubbles with response-content-markdown inside
+    // User messages: parent has items-end class, AI: items-start
+    doc.querySelectorAll(".response-content-markdown").forEach((el) => {
+      const container = el.closest("[id^='response-']");
+      if (!container) return;
+      const isUser = container.classList.contains("items-end");
+      turns.push({ role: isUser ? "user" : "assistant", el });
+    });
+  } else if (source === "perplexity") {
+    // Perplexity: user queries in h1.group\/query bubbles,
+    // AI responses in div[id^="markdown-content-"]
+    const items: { role: "user" | "assistant"; el: Element; idx: number }[] = [];
+    const allElements = doc.querySelectorAll("*");
+    allElements.forEach((el, idx) => {
+      // User query: h1 elements with class containing "group/query"
+      if (el.tagName === "H1" && el.classList.contains("group/query")) {
+        items.push({ role: "user", el, idx });
+      }
+      // AI response content
+      else if (el.id && el.id.startsWith("markdown-content-")) {
+        items.push({ role: "assistant", el, idx });
+      }
+    });
+    items.sort((a, b) => a.idx - b.idx);
+    items.forEach((item) => turns.push({ role: item.role, el: item.el }));
   }
 
   // Fallback: if no turns found, treat entire content as a single assistant message

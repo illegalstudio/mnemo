@@ -31,6 +31,9 @@ export function detectSource(content: string): Source {
   if (/openai/i.test(content) || /chatgpt/i.test(content) || /chat\.openai\.com/i.test(content)) {
     return "chatgpt";
   }
+  if (/grok\.com/i.test(content) || /xai/i.test(content)) {
+    return "grok";
+  }
   return "other";
 }
 
