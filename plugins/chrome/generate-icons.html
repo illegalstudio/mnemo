@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head><title>Generate Mnemo Icons</title></head>
+<body>
+<p>Right-click each canvas and "Save Image As" to create the icon PNGs.</p>
+<div>
+  <p>16x16:</p><canvas id="c16" width="16" height="16"></canvas>
+  <p>48x48:</p><canvas id="c48" width="48" height="48"></canvas>
+  <p>128x128:</p><canvas id="c128" width="128" height="128"></canvas>
+</div>
+<script>
+function draw(id, size) {
+  const c = document.getElementById(id);
+  const ctx = c.getContext('2d');
+  const r = size * 0.15;
+  const pad = size * 0.12;
+
+  // Background rounded rect
+  ctx.fillStyle = '#2563eb';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, size, size, r);
+  ctx.fill();
+
+  // Book icon
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = size * 0.08;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const cx = size / 2;
+  const top = pad * 1.5;
+  const bot = size - pad * 1.5;
+  const left = pad;
+  const right = size - pad;
+
+  ctx.beginPath();
+  ctx.moveTo(cx, top + (bot-top)*0.15);
+  ctx.lineTo(cx, bot);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx, top + (bot-top)*0.15);
+  ctx.quadraticCurveTo(left + (cx-left)*0.3, top, left, top + (bot-top)*0.08);
+  ctx.lineTo(left, bot - (bot-top)*0.05);
+  ctx.quadraticCurveTo(left + (cx-left)*0.3, bot - (bot-top)*0.12, cx, bot);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx, top + (bot-top)*0.15);
+  ctx.quadraticCurveTo(right - (right-cx)*0.3, top, right, top + (bot-top)*0.08);
+  ctx.lineTo(right, bot - (bot-top)*0.05);
+  ctx.quadraticCurveTo(right - (right-cx)*0.3, bot - (bot-top)*0.12, cx, bot);
+  ctx.stroke();
+}
+draw('c16', 16);
+draw('c48', 48);
+draw('c128', 128);
+</script>
+</body>
+</html>
