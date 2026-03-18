@@ -82,20 +82,49 @@ function extractTurns(doc: Document, source: Source): Turn[] {
       turns.push({ role: isUser ? "user" : "assistant", el });
     });
   } else if (source === "perplexity") {
-    // Perplexity: user queries in h1.group\/query bubbles,
-    // AI responses in div[id^="markdown-content-"]
+    // Perplexity has two modes:
+    // 1. Regular mode: user queries in h1.group/query, AI responses in div[id^="markdown-content-"]
+    // 2. Computer mode: user queries in h1.group/query (first) or div.group/query (follow-ups),
+    //    AI responses in gap-y-sm containers with .prose blocks (no markdown-content divs)
     const items: { role: "user" | "assistant"; el: Element; idx: number }[] = [];
     const allElements = doc.querySelectorAll("*");
+    let hasMarkdownContent = false;
+
     allElements.forEach((el, idx) => {
-      // User query: h1 elements with class containing "group/query"
-      if (el.tagName === "H1" && el.classList.contains("group/query")) {
+      // User query: h1 or div with class "group/query"
+      // Regular mode uses h1, Computer mode uses h1 for first message and div for follow-ups
+      if (
+        (el.tagName === "H1" || el.tagName === "DIV") &&
+        el.classList.contains("group/query")
+      ) {
         items.push({ role: "user", el, idx });
       }
-      // AI response content
+      // Regular mode: AI response in markdown-content divs
       else if (el.id && el.id.startsWith("markdown-content-")) {
+        hasMarkdownContent = true;
         items.push({ role: "assistant", el, idx });
       }
     });
+
+    // Computer mode fallback: no markdown-content divs found
+    // Collect response containers (gap-y-sm with .prose descendants)
+    if (!hasMarkdownContent && items.some((i) => i.role === "user")) {
+      allElements.forEach((el, idx) => {
+        if (
+          el.tagName === "DIV" &&
+          el.classList.contains("gap-y-sm") &&
+          el.classList.contains("flex-col") &&
+          el.querySelector(".prose") &&
+          !el.closest(".group\\/query")
+        ) {
+          // Only top-level gap-y-sm (skip nested ones)
+          if (!el.parentElement?.closest(".gap-y-sm")) {
+            items.push({ role: "assistant", el, idx });
+          }
+        }
+      });
+    }
+
     items.sort((a, b) => a.idx - b.idx);
     items.forEach((item) => turns.push({ role: item.role, el: item.el }));
   }
