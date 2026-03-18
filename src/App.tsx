@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
+import { onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import type { Chat } from "./types";
 import { isMnemoHtmlPaste, convertHtmlToMarkdown, reparseHtml } from "./lib/html-parser";
 import { generateSingleField } from "./lib/metadata";
@@ -79,6 +80,14 @@ export default function App() {
   sidebarWidthRef.current = sidebarWidth;
   chatListWidthRef.current = chatListWidth;
 
+  // ESC to close trash
+  useEffect(() => {
+    if (!showTrash) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") setShowTrash(false); };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [showTrash, setShowTrash]);
+
   // Load column widths from DB settings after DB is ready
   useEffect(() => {
     if (loading) return;
@@ -112,6 +121,14 @@ export default function App() {
     }
     return result;
   }, [chats, activeFilters]);
+
+  // Keep selectedChat in sync with visible list
+  useEffect(() => {
+    if (!selectedChat) return;
+    if (!filteredChats.some(c => c.id === selectedChat.id)) {
+      setSelectedChat(filteredChats[0] || null);
+    }
+  }, [filteredChats, selectedChat]);
 
   const folderMap = useMemo(() => new Map((folders ?? []).map(f => [f.id, f.name])), [folders]);
 
@@ -160,6 +177,28 @@ export default function App() {
       await updateChat(chatId, { content_md: result.content });
     }
   }, [chats, updateChat]);
+
+  // Deep link handler: mnemo://import — read clipboard and import
+  useEffect(() => {
+    if (loading) return;
+    const unlisten = onOpenUrl((urls) => {
+      for (const url of urls) {
+        if (url.startsWith("mnemo://import")) {
+          navigator.clipboard.readText().then((text) => {
+            if (!text || text.length < 50) return;
+            if (isMnemoHtmlPaste(text)) {
+              const { title, content, source } = convertHtmlToMarkdown(text);
+              importFile(title + ".md", content, text, source, analysisSettings, selectedFolderId);
+            } else if (text.includes("# ") || text.includes("## ")) {
+              const firstLine = text.split("\n")[0].replace(/^#\s+/, "").trim();
+              importFile((firstLine || "Pasted Chat") + ".md", text, undefined, undefined, analysisSettings, selectedFolderId);
+            }
+          }).catch(console.error);
+        }
+      }
+    });
+    return () => { unlisten.then(fn => fn()); };
+  }, [loading, importFile, analysisSettings, selectedFolderId]);
 
   // Cmd+Shift+F to focus global search
   useEffect(() => {
@@ -323,8 +362,8 @@ export default function App() {
           <>
             {!focusMode && (
               <div
-                className={`center-panel ${selectedChat ? "" : "expanded"}`}
-                style={selectedChat ? { width: chatListWidth, minWidth: chatListWidth } : undefined}
+                className={`center-panel ${!selectedChat && filteredChats.length === 0 ? "expanded" : ""}`}
+                style={selectedChat || filteredChats.length > 0 ? { width: chatListWidth, minWidth: chatListWidth } : undefined}
               >
                 <ChatList
                   chats={filteredChats} selectedChatId={selectedChat?.id ?? null}
@@ -338,7 +377,7 @@ export default function App() {
                 />
               </div>
             )}
-            {selectedChat && (
+            {selectedChat ? (
               <>
                 {!focusMode && <ResizeHandle onResize={handleChatListResize} onResizeStart={handleResizeStart} onResizeEnd={handleChatListResizeEnd} />}
                 <ChatDetail
@@ -360,7 +399,27 @@ export default function App() {
                   onToggleFocus={() => setFocusMode(f => !f)}
                 />
               </>
-            )}
+            ) : !focusMode && filteredChats.length > 0 ? (
+              <div className="detail-panel" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ textAlign: "center" }}>
+                  <svg width="64" height="64" viewBox="0 0 64 64" fill="none" style={{ margin: "0 auto 16px", display: "block", opacity: 0.25 }}>
+                    {/* Back card */}
+                    <rect x="14" y="8" width="36" height="44" rx="4" stroke="var(--text-faint)" strokeWidth="1.5" />
+                    <line x1="22" y1="18" x2="42" y2="18" stroke="var(--text-faint)" strokeWidth="1.5" strokeLinecap="round" />
+                    <line x1="22" y1="24" x2="38" y2="24" stroke="var(--text-faint)" strokeWidth="1.5" strokeLinecap="round" />
+                    <line x1="22" y1="30" x2="34" y2="30" stroke="var(--text-faint)" strokeWidth="1.5" strokeLinecap="round" />
+                    {/* Front card tilted */}
+                    <g transform="rotate(-6 32 36)">
+                      <rect x="14" y="12" width="36" height="44" rx="4" fill="var(--bg-base)" stroke="var(--text-faint)" strokeWidth="1.5" />
+                      <line x1="22" y1="22" x2="42" y2="22" stroke="var(--text-faint)" strokeWidth="1.5" strokeLinecap="round" />
+                      <line x1="22" y1="28" x2="38" y2="28" stroke="var(--text-faint)" strokeWidth="1.5" strokeLinecap="round" />
+                      <line x1="22" y1="34" x2="34" y2="34" stroke="var(--text-faint)" strokeWidth="1.5" strokeLinecap="round" />
+                    </g>
+                  </svg>
+                  <p style={{ color: "var(--text-faint)", fontSize: 13 }}>Select a chat to view</p>
+                </div>
+              </div>
+            ) : null}
           </>
         )}
       </div>
