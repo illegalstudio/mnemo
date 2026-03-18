@@ -30,6 +30,10 @@ const universalScript = `
       source = 'chatgpt';
     } else if (host.indexOf('claude.ai') >= 0) {
       source = 'claude';
+    } else if (host.indexOf('grok.com') >= 0) {
+      source = 'grok';
+    } else if (host.indexOf('perplexity.ai') >= 0) {
+      source = 'perplexity';
     } else {
       source = 'other';
     }

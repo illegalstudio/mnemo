@@ -9,6 +9,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let source = "other";
     if (host.includes("claude.ai")) source = "claude";
     else if (host.includes("chatgpt.com") || host.includes("chat.openai.com")) source = "chatgpt";
+    else if (host.includes("grok.com")) source = "grok";
+    else if (host.includes("perplexity.ai")) source = "perplexity";
 
     const main = document.querySelector("#main-content, main, [role='main']");
     const html = (main || document.body).innerHTML;
