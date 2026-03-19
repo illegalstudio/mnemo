@@ -1730,6 +1730,17 @@ mark.search-highlight.active {
 
 .settings-number:focus { border-color: var(--accent); }
 
+/* Analysis error modal */
+.analysis-error-modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  width: min(440px, 90vw);
+  display: flex;
+  flex-direction: column;
+}
+
 .settings-field-rows {
   display: flex;
   flex-direction: column;

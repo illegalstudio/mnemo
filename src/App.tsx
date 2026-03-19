@@ -3,7 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import type { Chat } from "./types";
 import { isMnemoHtmlPaste, convertHtmlToMarkdown, reparseHtml } from "./lib/html-parser";
-import { generateSingleField } from "./lib/metadata";
+import { generateSingleField, ToolNotFoundError } from "./lib/metadata";
 import * as db from "./lib/db";
 import { useDatabase } from "./hooks/useDatabase";
 import { useTheme } from "./hooks/useTheme";
@@ -68,6 +68,7 @@ export default function App() {
   const { settings: analysisSettings, update: updateAnalysis, updateFields: updateAnalysisFields, updateLanguages: updateAnalysisLanguages } = useAnalysisSettings();
   const [showSettings, setShowSettings] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [activeFilters, setActiveFilters] = useState<import("./components/Sidebar/Sidebar").ActiveFilters>({
     favorites: false, hasAttachment: false, hasSummary: false, createdAfter: "", createdBefore: "",
   });
@@ -138,33 +139,43 @@ export default function App() {
     if (!selected) return;
     const paths = Array.isArray(selected) ? selected : [selected];
     for (const filePath of paths) {
-      const content = await readTextFile(filePath);
-      const name = filePath.split("/").pop() || filePath.split("\\").pop() || "unknown.md";
-      await importFile(name, content, undefined, undefined, analysisSettings, selectedFolderId);
+      try {
+        const content = await readTextFile(filePath);
+        const name = filePath.split("/").pop() || filePath.split("\\").pop() || "unknown.md";
+        await importFile(name, content, undefined, undefined, analysisSettings, selectedFolderId);
+      } catch (e) {
+        if (e instanceof ToolNotFoundError) { setAnalysisError(e.message); }
+        else throw e;
+      }
     }
   }, [importFile, analysisSettings, selectedFolderId]);
 
   const handleRegenerateField = useCallback(async (chatId: string, field: "title" | "summary" | "tags") => {
     const chatObj = chats.find(c => c.id === chatId);
     if (!chatObj) return;
-    const allTags = await db.getAllTags();
-    const tagNames = allTags.map(t => t.slug);
-    const result = await generateSingleField(chatObj.content_md, field, analysisSettings, tagNames);
-    if (!result) return;
-    if (field === "title" && result.title) {
-      await updateChat(chatId, { title: result.title });
-    } else if (field === "summary" && result.summary) {
-      await updateChat(chatId, { summary: result.summary });
-    } else if (field === "tags" && result.tags) {
-      for (const tagName of result.tags) {
-        const existing = allTags.find(t => t.slug === tagName.toLowerCase().replace(/\s+/g, '-'));
-        if (existing) {
-          await addTagToChat(chatId, existing.id);
-        } else {
-          const newTag = await createTag(tagName);
-          if (newTag) await addTagToChat(chatId, newTag.id);
+    try {
+      const allTags = await db.getAllTags();
+      const tagNames = allTags.map(t => t.slug);
+      const result = await generateSingleField(chatObj.content_md, field, analysisSettings, tagNames);
+      if (!result) return;
+      if (field === "title" && result.title) {
+        await updateChat(chatId, { title: result.title });
+      } else if (field === "summary" && result.summary) {
+        await updateChat(chatId, { summary: result.summary });
+      } else if (field === "tags" && result.tags) {
+        for (const tagName of result.tags) {
+          const existing = allTags.find(t => t.slug === tagName.toLowerCase().replace(/\s+/g, '-'));
+          if (existing) {
+            await addTagToChat(chatId, existing.id);
+          } else {
+            const newTag = await createTag(tagName);
+            if (newTag) await addTagToChat(chatId, newTag.id);
+          }
         }
       }
+    } catch (e) {
+      if (e instanceof ToolNotFoundError) { setAnalysisError(e.message); }
+      else throw e;
     }
   }, [chats, analysisSettings, updateChat, addTagToChat, createTag]);
 
@@ -212,12 +223,17 @@ export default function App() {
 
       e.preventDefault();
 
+      const handleImportError = (e: unknown) => {
+        if (e instanceof ToolNotFoundError) setAnalysisError(e.message);
+        else console.error("Import error:", e);
+      };
+
       if (isMnemoHtmlPaste(text)) {
         const { title, content, source } = convertHtmlToMarkdown(text);
-        importFile(title + ".md", content, text, source, analysisSettings, selectedFolderId);
+        importFile(title + ".md", content, text, source, analysisSettings, selectedFolderId).catch(handleImportError);
       } else if (text.includes("# ") || text.includes("## ")) {
         const firstLine = text.split("\n")[0].replace(/^#\s+/, "").trim();
-        importFile((firstLine || "Pasted Chat") + ".md", text, undefined, undefined, analysisSettings, selectedFolderId);
+        importFile((firstLine || "Pasted Chat") + ".md", text, undefined, undefined, analysisSettings, selectedFolderId).catch(handleImportError);
       }
     };
     window.addEventListener("paste", handlePaste);
@@ -226,7 +242,12 @@ export default function App() {
 
   const handleImport = async (files: { name: string; content: string }[]) => {
     for (const file of files) {
-      await importFile(file.name, file.content, undefined, undefined, analysisSettings, selectedFolderId);
+      try {
+        await importFile(file.name, file.content, undefined, undefined, analysisSettings, selectedFolderId);
+      } catch (e) {
+        if (e instanceof ToolNotFoundError) { setAnalysisError(e.message); break; }
+        else throw e;
+      }
     }
   };
 
@@ -258,6 +279,34 @@ export default function App() {
 
   return (
     <>
+      {analysisError && (
+        <div className="expand-modal-overlay" onClick={() => setAnalysisError(null)}>
+          <div className="analysis-error-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="expand-modal-header">
+              <span>Errore di analisi</span>
+              <button className="close-btn" onClick={() => setAnalysisError(null)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="expand-modal-body" style={{ fontSize: 13, lineHeight: 1.6 }}>
+              <p style={{ marginBottom: 12 }}>
+                Non è stato possibile analizzare la chat perché il tool di analisi non è stato trovato nel sistema.
+              </p>
+              <p style={{ marginBottom: 12, color: "var(--text-muted)" }}>
+                {analysisError}
+              </p>
+              <p style={{ color: "var(--text-muted)", fontSize: 12 }}>
+                La chat è stata importata correttamente, ma i metadati (titolo, sommario, tag) non sono stati generati automaticamente.
+              </p>
+            </div>
+            <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+              <button className="import-btn" onClick={() => setAnalysisError(null)}>OK</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="app-layout">
         {!focusMode && (
           <>

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Chat, Tag, TagWithCount, FolderWithCount, Attachment, Source } from '../types';
 import * as db from '../lib/db';
 import { parseImportFile } from '../lib/parser';
-import { generateMetadata } from '../lib/metadata';
+import { generateMetadata, ToolNotFoundError } from '../lib/metadata';
 import type { AnalysisSettings } from './useAnalysisSettings';
 
 export function useDatabase() {
@@ -174,6 +174,7 @@ export function useDatabase() {
         }
       }
     } catch (e) {
+      if (e instanceof ToolNotFoundError) throw e;
       console.error('Metadata generation failed:', e);
     } finally {
       setGeneratingMetadata(prev => {

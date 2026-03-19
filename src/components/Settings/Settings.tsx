@@ -6,6 +6,7 @@ import type { ThemeMode } from "../../hooks/useTheme";
 import type { AnalysisSettings, LangCode } from "../../hooks/useAnalysisSettings";
 import { LANGUAGES } from "../../hooks/useAnalysisSettings";
 import { bookmarklets } from "../../lib/bookmarklets";
+import { checkToolAvailable } from "../../lib/metadata";
 
 interface Snapshot {
   filename: string;
@@ -53,6 +54,8 @@ export default function Settings({
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [toolAvailable, setToolAvailable] = useState<boolean | null>(null);
+  const [toolChecking, setToolChecking] = useState(false);
 
   const loadSnapshots = useCallback(async () => {
     try {
@@ -64,6 +67,19 @@ export default function Settings({
   }, []);
 
   useEffect(() => { loadSnapshots(); }, [loadSnapshots]);
+
+  // Check tool availability when analysis is enabled
+  useEffect(() => {
+    if (!analysisSettings.enabled) {
+      setToolAvailable(null);
+      return;
+    }
+    setToolChecking(true);
+    checkToolAvailable(analysisSettings.tool).then((ok) => {
+      setToolAvailable(ok);
+      setToolChecking(false);
+    });
+  }, [analysisSettings.enabled, analysisSettings.tool]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -182,6 +198,10 @@ export default function Settings({
         {/* Analysis */}
         <div className="settings-section">
           <h3>AI Analysis</h3>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
+            Analizza automaticamente le chat importate per generare titolo, sommario e tag usando un modello AI.
+            Attualmente è supportato solo Claude Code (CLI) come tool di analisi.
+          </p>
 
           <label className="settings-toggle">
             <input
@@ -201,9 +221,21 @@ export default function Settings({
                   className="settings-select"
                   value={analysisSettings.tool}
                   onChange={(e) => onUpdateAnalysis({ tool: e.target.value as AnalysisSettings["tool"] })}
+                  style={toolAvailable === false ? { borderColor: "var(--red)" } : undefined}
                 >
                   <option value="claude-code">Claude Code (CLI)</option>
                 </select>
+                {toolChecking && (
+                  <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>Verifica disponibilità...</p>
+                )}
+                {toolAvailable === false && !toolChecking && (
+                  <p style={{ fontSize: 11, color: "var(--red)", marginTop: 4, lineHeight: 1.4 }}>
+                    Tool non trovato nel sistema. Assicurati che Claude Code CLI sia installato e disponibile nel PATH.
+                  </p>
+                )}
+                {toolAvailable === true && !toolChecking && (
+                  <p style={{ fontSize: 11, color: "var(--green)", marginTop: 4 }}>Tool disponibile</p>
+                )}
               </div>
 
               {/* Fields + language per field */}
