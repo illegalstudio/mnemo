@@ -34,6 +34,7 @@ interface SidebarProps {
   onSetFilters: (filters: ActiveFilters) => void;
   onOpenSettings: () => void;
   onImportClick: () => void;
+  onRefresh: () => void;
 }
 
 export interface ActiveFilters {
@@ -114,13 +115,14 @@ export function Sidebar({
   onCreateTag, onUpdateTag, onDeleteTag,
   onSelectFolder, onCreateFolder, onRenameFolder, onDeleteFolder, onMoveChatToFolder, onMoveFolderToParent,
   trashCount, onShowTrash, activeFilters, onSetFilters,
-  onOpenSettings, onImportClick,
+  onOpenSettings, onImportClick, onRefresh,
 }: SidebarProps) {
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const debouncedSearch = useDebounce(localSearch, 300);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(loadCollapsed);
   const [creatingTag, setCreatingTag] = useState(false);
   const [creatingFolder, setCreatingFolder] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => { onSearch(debouncedSearch); }, [debouncedSearch, onSearch]);
 
@@ -229,6 +231,9 @@ export function Sidebar({
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <ChevronIcon expanded={!collapsed.folders} />
               Folders
+              <button onClick={(e) => { e.stopPropagation(); if (refreshing) return; setRefreshing(true); onRefresh(); setTimeout(() => setRefreshing(false), 600); }} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", lineHeight: 1, padding: 0 }} title="Refresh">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={refreshing ? "spin" : ""}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12a9 9 0 019-9 9.75 9.75 0 016.74 2.74L21 8M3 3v5h5M21 12a9 9 0 01-9 9 9.75 9.75 0 01-6.74-2.74L3 16m18 5v-5h-5" /></svg>
+              </button>
             </span>
             <button onClick={(e) => { e.stopPropagation(); setCreatingFolder(true); }} style={{ border: "none", background: "none", color: "var(--text-faint)", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: 0 }} title="New folder">+</button>
           </div>
