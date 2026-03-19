@@ -58,6 +58,40 @@ fn search_index_count(state: tauri::State<'_, SearchIndex>) -> Result<u64, Strin
     Ok(state.doc_count())
 }
 
+#[derive(serde::Serialize)]
+struct StorageUsage {
+    db_bytes: u64,
+    attachments_bytes: u64,
+    attachments_count: u64,
+}
+
+#[tauri::command]
+fn get_storage_usage(app: tauri::AppHandle) -> Result<StorageUsage, String> {
+    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+
+    let db_bytes = std::fs::metadata(data_dir.join("mnemo.db"))
+        .map(|m| m.len())
+        .unwrap_or(0);
+
+    let mut attachments_bytes: u64 = 0;
+    let mut attachments_count: u64 = 0;
+    let att_dir = data_dir.join("attachments");
+    if att_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&att_dir) {
+            for entry in entries.flatten() {
+                if let Ok(meta) = entry.metadata() {
+                    if meta.is_file() {
+                        attachments_bytes += meta.len();
+                        attachments_count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(StorageUsage { db_bytes, attachments_bytes, attachments_count })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -71,6 +105,7 @@ pub fn run() {
             delete_from_index,
             reindex_all,
             search_index_count,
+            get_storage_usage,
             backup::create_snapshot,
             backup::list_snapshots,
             backup::export_snapshot,
