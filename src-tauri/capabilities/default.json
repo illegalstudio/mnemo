@@ -59,6 +59,9 @@
     "fs:allow-read-file",
     "fs:allow-copy-file",
     "fs:allow-exists",
+    "fs:allow-mkdir",
+    "fs:allow-remove",
+    "fs:allow-write-file",
     {
       "identifier": "fs:scope",
       "allow": [

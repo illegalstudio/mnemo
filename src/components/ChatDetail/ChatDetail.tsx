@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { extractHeadings } from "../../lib/parser";
 import { jsxToHtml } from "../../lib/jsx-preview";
+import { resolveAttachmentPath } from "../../lib/attachments";
 import type { Chat, Tag, TagWithCount, Attachment } from "../../types";
 import mermaid from "mermaid";
 
@@ -308,12 +309,13 @@ export default function ChatDetail({
   }, [chat.id, onAddAttachment]);
 
   const handleOpenAttachment = useCallback(async (att: Attachment) => {
+    const resolved = await resolveAttachmentPath(att.file_path);
     const ext = att.filename.split(".").pop()?.toLowerCase();
     const imageExts = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"];
     if (ext && imageExts.includes(ext)) {
       try {
         const { readFile } = await import("@tauri-apps/plugin-fs");
-        const bytes = await readFile(att.file_path);
+        const bytes = await readFile(resolved);
         const blob = new Blob([bytes], { type: att.mime_type || `image/${ext}` });
         const dataUrl = URL.createObjectURL(blob);
         setImgPreview({ filename: att.filename, path: dataUrl });
@@ -324,7 +326,7 @@ export default function ChatDetail({
     }
     if (ext === "md" || ext === "markdown") {
       try {
-        const content = await readTextFile(att.file_path);
+        const content = await readTextFile(resolved);
         setMdPreview({ filename: att.filename, content });
       } catch (e) {
         console.error("Failed to read markdown file:", e);
@@ -333,7 +335,7 @@ export default function ChatDetail({
     }
     if (ext === "jsx" || ext === "tsx") {
       try {
-        const source = await readTextFile(att.file_path);
+        const source = await readTextFile(resolved);
         const html = jsxToHtml(source, att.filename);
         const webview = new WebviewWindow(`attachment-${att.id}`, {
           title: att.filename,
@@ -354,10 +356,9 @@ export default function ChatDetail({
       try {
         let url: string;
         if (att.file_path.startsWith("data:")) {
-          // Inline data URI (e.g. widget from bookmarklet)
           url = att.file_path;
         } else {
-          const html = await readTextFile(att.file_path);
+          const html = await readTextFile(resolved);
           url = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
         }
         const webview = new WebviewWindow(`attachment-${att.id}`, {
@@ -375,7 +376,7 @@ export default function ChatDetail({
       }
     } else {
       try {
-        await Command.create("open", [att.file_path]).execute();
+        await Command.create("open", [resolved]).execute();
       } catch (e) {
         console.error("Failed to open attachment:", e);
       }
@@ -590,23 +591,28 @@ export default function ChatDetail({
         {/* Attachments */}
         <div className="detail-section">
           <div className="field-label">Attachments</div>
-          {attachments.map((att) => (
+          {attachments.map((att) => {
+            const ext = att.filename.split(".").pop()?.toLowerCase() || "";
+            const previewable = ["png","jpg","jpeg","gif","webp","svg","bmp","ico","md","markdown","jsx","tsx","html","htm"].includes(ext) || att.file_path.startsWith("data:");
+            return (
             <div key={att.id} className="attachment-row">
               <span className="attachment-name">{att.filename}</span>
               <div className="attachment-actions">
-                <button className="open-btn" onClick={() => handleOpenAttachment(att)}>Open</button>
+                {previewable && <button className="open-btn" onClick={() => handleOpenAttachment(att)}>Open</button>}
                 <button className="open-btn" onClick={async () => {
                   const ext = att.filename.split(".").pop() || "";
                   const dest = await import("@tauri-apps/plugin-dialog").then(d => d.save({ defaultPath: att.filename, filters: [{ name: "File", extensions: [ext] }] }));
                   if (dest) {
+                    const resolved = await resolveAttachmentPath(att.file_path);
                     const { copyFile } = await import("@tauri-apps/plugin-fs");
-                    await copyFile(att.file_path, dest);
+                    await copyFile(resolved, dest);
                   }
                 }}>Download</button>
                 <button className="remove-btn" onClick={() => onRemoveAttachment(att.id)}>&times;</button>
               </div>
             </div>
-          ))}
+            );
+          })}
           <button className="link-btn" onClick={handleAttachFile}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
