@@ -110,6 +110,37 @@ export async function initDb(): Promise<Database> {
     "DELETE FROM chats WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', '-30 days')"
   );
 
+  // Migration: move attachment files to app data directory and convert to relative paths
+  const migrated = await instance.select<{ value: string }[]>(
+    "SELECT value FROM settings WHERE key = 'migration_attachments_v1'"
+  );
+  if (migrated.length === 0) {
+    const { copyAttachmentToAppData } = await import("./attachments");
+    const { exists: fsExists } = await import("@tauri-apps/plugin-fs");
+    const allAttachments = await instance.select<{ id: string; filename: string; file_path: string }[]>(
+      "SELECT id, filename, file_path FROM attachments"
+    );
+    for (const att of allAttachments) {
+      // Skip data: URIs and already-migrated relative paths
+      if (att.file_path.startsWith("data:") || !att.file_path.startsWith("/")) continue;
+      try {
+        const fileStillExists = await fsExists(att.file_path);
+        if (fileStillExists) {
+          const relativePath = await copyAttachmentToAppData(att.file_path, att.filename);
+          await instance.execute(
+            "UPDATE attachments SET file_path = ? WHERE id = ?",
+            [relativePath, att.id]
+          );
+        }
+      } catch (e) {
+        console.error(`[migration] Failed to migrate attachment ${att.id}:`, e);
+      }
+    }
+    await instance.execute(
+      "INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_attachments_v1', 'done')"
+    );
+  }
+
   db = instance;
   return instance;
 }
@@ -164,6 +195,42 @@ export async function closeDb(): Promise<void> {
     await db.close();
     db = null;
   }
+}
+
+/**
+ * Find an existing chat that looks like a duplicate of the given content.
+ * Compares the first PREFIX_LEN chars of normalized content within the same source.
+ */
+export async function findDuplicateChat(
+  contentMd: string,
+  source: string
+): Promise<Chat | null> {
+  const PREFIX_LEN = 800;
+  const normalize = (s: string) =>
+    s
+      .replace(/<!--.*?-->\n?/gs, "") // strip HTML comments (mnemo meta)
+      .replace(/\s+/g, " ")           // collapse whitespace
+      .trim()
+      .slice(0, PREFIX_LEN);
+
+  const newPrefix = normalize(contentMd);
+  if (newPrefix.length < 80) return null; // too short to be meaningful
+
+  const d = await getDb();
+  const candidates = await d.select<Chat[]>(
+    "SELECT * FROM chats WHERE source = ? AND deleted_at IS NULL ORDER BY imported_at DESC",
+    [source]
+  );
+
+  for (const chat of candidates) {
+    const existingPrefix = normalize(chat.content_md);
+    // Check if one is a prefix of the other (handles continued conversations)
+    if (newPrefix.startsWith(existingPrefix) || existingPrefix.startsWith(newPrefix)) {
+      return chat;
+    }
+  }
+
+  return null;
 }
 
 export async function getAllChats(): Promise<Chat[]> {
@@ -288,6 +355,16 @@ export async function restoreChat(id: string): Promise<void> {
 
 export async function permanentlyDeleteChat(id: string): Promise<void> {
   const d = await getDb();
+  // Delete attachment files from disk
+  const attachments = await d.select<{ file_path: string }[]>(
+    "SELECT file_path FROM attachments WHERE chat_id = ?", [id]
+  );
+  if (attachments.length > 0) {
+    const { deleteAttachmentFile } = await import("./attachments");
+    for (const att of attachments) {
+      await deleteAttachmentFile(att.file_path);
+    }
+  }
   await d.execute("DELETE FROM attachments WHERE chat_id = ?", [id]);
   await d.execute("DELETE FROM chat_tags WHERE chat_id = ?", [id]);
   await d.execute("DELETE FROM chats WHERE id = ?", [id]);

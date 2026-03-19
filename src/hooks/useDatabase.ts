@@ -126,6 +126,68 @@ export function useDatabase() {
     })();
   }, [selectedChat?.id]);
 
+  const checkDuplicate = useCallback(async (content: string, contentHtml?: string, sourceOverride?: Source) => {
+    const parsed = parseImportFile("check", content, contentHtml);
+    if (sourceOverride) parsed.source = sourceOverride;
+    return db.findDuplicateChat(parsed.content_md, parsed.source);
+  }, []);
+
+  const updateExistingChat = useCallback(async (existingId: string, content: string, contentHtml?: string, analysisSettings?: AnalysisSettings) => {
+    const updates: Partial<Chat> = { content_md: content, imported_at: new Date().toISOString() };
+    if (contentHtml) updates.content_html = contentHtml;
+    await db.updateChat(existingId, updates);
+    await refreshChats();
+    const updated = (await db.getAllChats()).find(c => c.id === existingId);
+    if (updated) {
+      setSelectedChat(updated);
+    }
+
+    if (!analysisSettings?.enabled) return;
+
+    setGeneratingMetadata(prev => new Set(prev).add(existingId));
+    try {
+      const allExistingTags = await db.getAllTags();
+      const tagNames = allExistingTags.map(t => t.slug);
+      const metadata = await generateMetadata(content, analysisSettings, tagNames);
+      if (metadata) {
+        const metaUpdates: Partial<Chat> = {};
+        if (metadata.title) metaUpdates.title = metadata.title;
+        if (metadata.summary) metaUpdates.summary = metadata.summary;
+        if (Object.keys(metaUpdates).length > 0) {
+          await db.updateChat(existingId, metaUpdates);
+        }
+        for (const tagName of metadata.tags || []) {
+          const existingTags = await db.getAllTags();
+          const slug = tagName.toLowerCase().replace(/\s+/g, '-');
+          const existingTag = existingTags.find(t => t.slug === slug);
+          if (existingTag) {
+            await db.addTagToChat(existingId, existingTag.id);
+          } else {
+            const newTag = await db.insertTag(tagName);
+            await db.addTagToChat(existingId, newTag.id);
+          }
+        }
+        await refreshChats();
+        await refreshTags();
+        const refreshed = (await db.getAllChats()).find(c => c.id === existingId);
+        if (refreshed) {
+          setSelectedChat(refreshed);
+          const chatTags = await db.getTagsForChat(existingId);
+          setSelectedChatTags(chatTags);
+        }
+      }
+    } catch (e) {
+      if (e instanceof ToolNotFoundError) throw e;
+      console.error('Metadata generation failed:', e);
+    } finally {
+      setGeneratingMetadata(prev => {
+        const next = new Set(prev);
+        next.delete(existingId);
+        return next;
+      });
+    }
+  }, [refreshChats, refreshTags]);
+
   const importFile = useCallback(async (filename: string, content: string, contentHtml?: string, sourceOverride?: Source, analysisSettings?: AnalysisSettings, folderId?: string | null) => {
     const parsed = parseImportFile(filename, content, contentHtml);
     if (sourceOverride) parsed.source = sourceOverride;
@@ -272,10 +334,12 @@ export function useDatabase() {
   }, [selectedChat?.id, refreshTags]);
 
   const addAttachment = useCallback(async (chatId: string, filename: string, filePath: string, mimeType: string | null) => {
+    const { copyAttachmentToAppData } = await import('../lib/attachments');
+    const relativePath = await copyAttachmentToAppData(filePath, filename);
     await db.insertAttachment({
       chat_id: chatId,
       filename,
-      file_path: filePath,
+      file_path: relativePath,
       mime_type: mimeType,
       attached_at: new Date().toISOString(),
     });
@@ -286,6 +350,15 @@ export function useDatabase() {
   }, [selectedChat?.id]);
 
   const removeAttachment = useCallback(async (attachmentId: string) => {
+    // Get file path before deleting the record
+    if (selectedChat) {
+      const attachments = await db.getAttachments(selectedChat.id);
+      const att = attachments.find(a => a.id === attachmentId);
+      if (att) {
+        const { deleteAttachmentFile } = await import('../lib/attachments');
+        await deleteAttachmentFile(att.file_path);
+      }
+    }
     await db.deleteAttachment(attachmentId);
     if (selectedChat) {
       const attachments = await db.getAttachments(selectedChat.id);
@@ -379,6 +452,8 @@ export function useDatabase() {
     loading,
     generatingMetadata,
     setSelectedChat,
+    checkDuplicate,
+    updateExistingChat,
     importFile,
     updateChat,
     toggleFavorite,
@@ -397,6 +472,7 @@ export function useDatabase() {
     search,
     refreshChats,
     refreshTags,
+    refreshFolders,
     createFolder,
     renameFolder,
     deleteFolder: deleteFolderCb,

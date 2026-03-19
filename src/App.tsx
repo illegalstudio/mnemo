@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-import type { Chat } from "./types";
+import type { Chat, Source } from "./types";
 import { isMnemoHtmlPaste, convertHtmlToMarkdown, reparseHtml } from "./lib/html-parser";
 import { generateSingleField, ToolNotFoundError } from "./lib/metadata";
 import * as db from "./lib/db";
@@ -56,11 +56,12 @@ export default function App() {
   const {
     chats, recentChats, tags, folders, unfiledCount, selectedChat, selectedChatTags, selectedChatAttachments,
     searchQuery, selectedTagIds, selectedSource, selectedFolderId, loading, generatingMetadata,
-    setSelectedChat, importFile, updateChat, toggleFavorite, deleteChat,
+    setSelectedChat, checkDuplicate, updateExistingChat, importFile, updateChat, toggleFavorite, deleteChat,
     createTag, updateTag, deleteTag,
     addTagToChat, removeTagFromChat, addAttachment, removeAttachment,
     toggleTag, selectTag, clearTags, selectSource, search,
     createFolder, renameFolder, deleteFolder: deleteFolderCb, moveChatToFolder, moveFolderToParent, selectFolder,
+    refreshChats, refreshTags, refreshFolders,
     trashChats, showTrash, setShowTrash, restoreChat, permanentlyDeleteChat, emptyTrash, refreshTrash,
   } = useDatabase();
 
@@ -69,6 +70,13 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [duplicatePrompt, setDuplicatePrompt] = useState<{
+    existingChat: Chat;
+    filename: string;
+    content: string;
+    contentHtml?: string;
+    sourceOverride?: Source;
+  } | null>(null);
   const [activeFilters, setActiveFilters] = useState<import("./components/Sidebar/Sidebar").ActiveFilters>({
     favorites: false, hasAttachment: false, hasSummary: false, createdAfter: "", createdBefore: "",
   });
@@ -134,21 +142,56 @@ export default function App() {
 
   const handleResizeStart = useCallback(() => setIsResizing(true), []);
 
+  const importWithDuplicateCheck = useCallback(async (
+    filename: string, content: string, contentHtml?: string, sourceOverride?: Source
+  ) => {
+    try {
+      const existing = await checkDuplicate(content, contentHtml, sourceOverride);
+      if (existing) {
+        setDuplicatePrompt({ existingChat: existing, filename, content, contentHtml, sourceOverride });
+        return; // wait for user choice via modal
+      }
+      await importFile(filename, content, contentHtml, sourceOverride, analysisSettings, selectedFolderId);
+    } catch (e) {
+      if (e instanceof ToolNotFoundError) { setAnalysisError(e.message); }
+      else throw e;
+    }
+  }, [checkDuplicate, importFile, analysisSettings, selectedFolderId]);
+
+  const handleDuplicateUpdate = useCallback(async () => {
+    if (!duplicatePrompt) return;
+    const { existingChat, content, contentHtml } = duplicatePrompt;
+    setDuplicatePrompt(null);
+    try {
+      await updateExistingChat(existingChat.id, content, contentHtml, analysisSettings);
+    } catch (e) {
+      if (e instanceof ToolNotFoundError) { setAnalysisError(e.message); }
+      else throw e;
+    }
+  }, [duplicatePrompt, updateExistingChat, analysisSettings]);
+
+  const handleDuplicateCreateNew = useCallback(async () => {
+    if (!duplicatePrompt) return;
+    const { filename, content, contentHtml, sourceOverride } = duplicatePrompt;
+    setDuplicatePrompt(null);
+    try {
+      await importFile(filename, content, contentHtml, sourceOverride, analysisSettings, selectedFolderId);
+    } catch (e) {
+      if (e instanceof ToolNotFoundError) { setAnalysisError(e.message); }
+      else throw e;
+    }
+  }, [duplicatePrompt, importFile, analysisSettings, selectedFolderId]);
+
   const handleFileOpen = useCallback(async () => {
     const selected = await open({ multiple: true, filters: [{ name: "Markdown", extensions: ["md"] }] });
     if (!selected) return;
     const paths = Array.isArray(selected) ? selected : [selected];
     for (const filePath of paths) {
-      try {
-        const content = await readTextFile(filePath);
-        const name = filePath.split("/").pop() || filePath.split("\\").pop() || "unknown.md";
-        await importFile(name, content, undefined, undefined, analysisSettings, selectedFolderId);
-      } catch (e) {
-        if (e instanceof ToolNotFoundError) { setAnalysisError(e.message); }
-        else throw e;
-      }
+      const content = await readTextFile(filePath);
+      const name = filePath.split("/").pop() || filePath.split("\\").pop() || "unknown.md";
+      await importWithDuplicateCheck(name, content);
     }
-  }, [importFile, analysisSettings, selectedFolderId]);
+  }, [importWithDuplicateCheck]);
 
   const handleRegenerateField = useCallback(async (chatId: string, field: "title" | "summary" | "tags") => {
     const chatObj = chats.find(c => c.id === chatId);
@@ -223,31 +266,21 @@ export default function App() {
 
       e.preventDefault();
 
-      const handleImportError = (e: unknown) => {
-        if (e instanceof ToolNotFoundError) setAnalysisError(e.message);
-        else console.error("Import error:", e);
-      };
-
       if (isMnemoHtmlPaste(text)) {
         const { title, content, source } = convertHtmlToMarkdown(text);
-        importFile(title + ".md", content, text, source, analysisSettings, selectedFolderId).catch(handleImportError);
+        importWithDuplicateCheck(title + ".md", content, text, source);
       } else if (text.includes("# ") || text.includes("## ")) {
         const firstLine = text.split("\n")[0].replace(/^#\s+/, "").trim();
-        importFile((firstLine || "Pasted Chat") + ".md", text, undefined, undefined, analysisSettings, selectedFolderId).catch(handleImportError);
+        importWithDuplicateCheck((firstLine || "Pasted Chat") + ".md", text);
       }
     };
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [importFile, analysisSettings, selectedFolderId]);
+  }, [importWithDuplicateCheck]);
 
   const handleImport = async (files: { name: string; content: string }[]) => {
     for (const file of files) {
-      try {
-        await importFile(file.name, file.content, undefined, undefined, analysisSettings, selectedFolderId);
-      } catch (e) {
-        if (e instanceof ToolNotFoundError) { setAnalysisError(e.message); break; }
-        else throw e;
-      }
+      await importWithDuplicateCheck(file.name, file.content);
     }
   };
 
@@ -307,6 +340,45 @@ export default function App() {
           </div>
         </div>
       )}
+      {duplicatePrompt && (
+        <div className="expand-modal-overlay" onClick={() => setDuplicatePrompt(null)}>
+          <div className="analysis-error-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="expand-modal-header">
+              <span>Chat già esistente</span>
+              <button className="close-btn" onClick={() => setDuplicatePrompt(null)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="expand-modal-body" style={{ fontSize: 13, lineHeight: 1.6 }}>
+              <p style={{ marginBottom: 12 }}>
+                Esiste già una chat simile nell'archivio:
+              </p>
+              <div style={{
+                padding: "10px 12px", background: "var(--bg-elevated)", borderRadius: 8,
+                border: "1px solid var(--border)", marginBottom: 12
+              }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{duplicatePrompt.existingChat.title}</div>
+                <div style={{ fontSize: 11, color: "var(--text-faint)" }}>
+                  Importata il {new Date(duplicatePrompt.existingChat.imported_at).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" })}
+                </div>
+              </div>
+              <p style={{ color: "var(--text-muted)", fontSize: 12 }}>
+                Vuoi aggiornare la chat esistente con il nuovo contenuto o creare una nuova copia?
+              </p>
+            </div>
+            <div style={{
+              padding: "12px 16px", borderTop: "1px solid var(--border)",
+              display: "flex", justifyContent: "flex-end", gap: 8
+            }}>
+              <button className="snapshot-restore-btn" onClick={() => setDuplicatePrompt(null)}>Annulla</button>
+              <button className="snapshot-restore-btn" onClick={handleDuplicateCreateNew}>Crea nuova</button>
+              <button className="import-btn" onClick={handleDuplicateUpdate}>Aggiorna esistente</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="app-layout">
         {!focusMode && (
           <>
@@ -327,6 +399,7 @@ export default function App() {
                 onSetFilters={setActiveFilters}
                 onOpenSettings={() => setShowSettings(true)}
                 onImportClick={handleFileOpen}
+                onRefresh={() => { refreshChats(); refreshTags(); refreshFolders(); }}
               />
             </div>
             <ResizeHandle onResize={handleSidebarResize} onResizeStart={handleResizeStart} onResizeEnd={handleSidebarResizeEnd} />

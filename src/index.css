@@ -1730,6 +1730,38 @@ mark.search-highlight.active {
 
 .settings-number:focus { border-color: var(--accent); }
 
+/* Spin animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 0.6s ease-in-out;
+}
+
+/* Storage usage cards */
+.storage-usage-card {
+  flex: 1;
+  padding: 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.storage-usage-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.storage-usage-label {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
 /* Analysis error modal */
 .analysis-error-modal {
   background: var(--bg-surface);
