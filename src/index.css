@@ -776,6 +776,7 @@ html, body, #root {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  border-top: 1px solid var(--border-subtle);
   overscroll-behavior: contain;
 }
 
@@ -896,6 +897,42 @@ html, body, #root {
 
 .detail-textarea:focus { border-color: var(--accent); }
 .detail-textarea::placeholder { color: var(--text-faint); }
+
+/* Details toggle */
+.detail-meta-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 20px 8px;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.detail-meta-toggle-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.detail-meta-toggle-tags {
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.detail-meta-toggle-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+  min-width: 20px;
+}
 
 /* Tags in detail */
 .tag-list { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }

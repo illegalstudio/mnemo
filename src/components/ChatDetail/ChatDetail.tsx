@@ -482,7 +482,7 @@ export default function ChatDetail({
 
       <div className="detail-scroll">
         {/* Metadata */}
-        <div className="detail-section">
+        <div className="detail-section" style={{ borderBottom: "none", paddingBottom: 0 }}>
           {editingTitle ? (
             <input className="detail-title-input" value={titleValue} onChange={(e) => setTitleValue(e.target.value)}
               onBlur={handleTitleSave} onKeyDown={(e) => e.key === "Enter" && handleTitleSave()} autoFocus />
@@ -502,24 +502,21 @@ export default function ChatDetail({
         </div>
 
         {/* Collapsible metadata: Summary + Tags + Attachments */}
-        <div className="detail-section detail-meta-toggle" onClick={() => setMetaCollapsed(c => !c)} style={{ cursor: "pointer", userSelect: "none" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2.5"
-              style={{ transform: metaCollapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-            <span className="field-label" style={{ marginBottom: 0 }}>Details</span>
-            {metaCollapsed && tags.length > 0 && (
-              <span style={{ fontSize: 11, color: "var(--text-faint)" }}>
-                {tags.map(t => t.name).join(", ")}
-              </span>
-            )}
-          </div>
+        <div className="detail-meta-toggle" onClick={() => setMetaCollapsed(c => !c)}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2.5"
+            style={{ transform: metaCollapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform 0.15s", flexShrink: 0 }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+          <span className="detail-meta-toggle-label">Details</span>
+          {metaCollapsed && tags.length > 0 && (
+            <span className="detail-meta-toggle-tags">{tags.map(t => t.name).join(", ")}</span>
+          )}
+          {!metaCollapsed && <span className="detail-meta-toggle-line" />}
         </div>
 
         {!metaCollapsed && <>
         {/* Summary + Tags */}
-        <div className="detail-section">
+        <div className="detail-section" style={{ borderBottom: "none" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div className="field-label" style={{ marginBottom: 0 }}>Summary</div>
             <div style={{ display: "flex", gap: 4 }}>
