@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open as dialogOpen } from "@tauri-apps/plugin-dialog";
-import { closeDb, rebuildSearchIndex } from "../../lib/db";
+import { closeDb } from "../../lib/db";
 import type { ThemeMode } from "../../hooks/useTheme";
 import type { AnalysisSettings, LangCode } from "../../hooks/useAnalysisSettings";
 import { LANGUAGES } from "../../hooks/useAnalysisSettings";
@@ -45,6 +45,12 @@ function LangSelect({ value, onChange }: { value: LangCode; onChange: (v: LangCo
   );
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function Settings({
   themeMode, onSetTheme,
   analysisSettings, onUpdateAnalysis, onUpdateAnalysisFields, onUpdateAnalysisLanguages,
@@ -56,6 +62,7 @@ export default function Settings({
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [toolAvailable, setToolAvailable] = useState<boolean | null>(null);
   const [toolChecking, setToolChecking] = useState(false);
+  const [storageUsage, setStorageUsage] = useState<{ db_bytes: number; attachments_bytes: number; attachments_count: number } | null>(null);
 
   const loadSnapshots = useCallback(async () => {
     try {
@@ -66,7 +73,12 @@ export default function Settings({
     }
   }, []);
 
-  useEffect(() => { loadSnapshots(); }, [loadSnapshots]);
+  useEffect(() => {
+    loadSnapshots();
+    invoke<{ db_bytes: number; attachments_bytes: number; attachments_count: number }>("get_storage_usage")
+      .then(setStorageUsage)
+      .catch((e) => console.error("Failed to load storage usage:", e));
+  }, [loadSnapshots]);
 
   // Check tool availability when analysis is enabled
   useEffect(() => {
@@ -119,10 +131,8 @@ export default function Settings({
     try {
       await closeDb();
       await invoke("restore_snapshot", { sourcePath: snap.path });
-      setSnapshotStatus("Restored. Rebuilding index...");
-      await rebuildSearchIndex();
       setSnapshotStatus("Restored. Reloading...");
-      setTimeout(() => window.location.reload(), 500);
+      setTimeout(() => window.location.reload(), 300);
     } catch (e) {
       setSnapshotStatus("Restore error: " + e);
     }
@@ -150,10 +160,8 @@ export default function Settings({
       const filePath = typeof selected === "string" ? selected : String(selected);
       await closeDb();
       await invoke("restore_snapshot", { sourcePath: filePath });
-      setSnapshotStatus("Restored. Rebuilding index...");
-      await rebuildSearchIndex();
       setSnapshotStatus("Restored. Reloading...");
-      setTimeout(() => window.location.reload(), 500);
+      setTimeout(() => window.location.reload(), 300);
     } catch (e) {
       console.error("[restore] error:", e);
       setSnapshotStatus("Restore error: " + e);
@@ -296,6 +304,29 @@ export default function Settings({
                 </div>
               )}
             </div>
+          )}
+        </div>
+
+        {/* Storage Usage */}
+        <div className="settings-section">
+          <h3>Storage</h3>
+          {storageUsage ? (
+            <div style={{ display: "flex", gap: 16 }}>
+              <div className="storage-usage-card">
+                <div className="storage-usage-value">{formatBytes(storageUsage.db_bytes)}</div>
+                <div className="storage-usage-label">Database</div>
+              </div>
+              <div className="storage-usage-card">
+                <div className="storage-usage-value">{formatBytes(storageUsage.attachments_bytes)}</div>
+                <div className="storage-usage-label">Attachments ({storageUsage.attachments_count})</div>
+              </div>
+              <div className="storage-usage-card">
+                <div className="storage-usage-value">{formatBytes(storageUsage.db_bytes + storageUsage.attachments_bytes)}</div>
+                <div className="storage-usage-label">Total</div>
+              </div>
+            </div>
+          ) : (
+            <p style={{ fontSize: 12, color: "var(--text-faint)", fontStyle: "italic" }}>Loading...</p>
           )}
         </div>
 
