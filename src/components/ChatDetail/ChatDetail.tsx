@@ -174,6 +174,8 @@ export default function ChatDetail({
   const [tagHighlight, setTagHighlight] = useState(-1);
   const [tocWidth, setTocWidth] = useState(200);
   const [regenerating, setRegenerating] = useState<string | null>(null);
+  const [metaCollapsed, setMetaCollapsed] = useState(false);
+  const [confirmRemoveAtt, setConfirmRemoveAtt] = useState<string | null>(null);
   const [mdPreview, setMdPreview] = useState<{ filename: string; content: string } | null>(null);
   const [imgPreview, setImgPreview] = useState<{ filename: string; path: string } | null>(null);
   const [showChatSearch, setShowChatSearch] = useState(false);
@@ -499,41 +501,50 @@ export default function ChatDetail({
           </div>
         </div>
 
-        {/* Summary */}
+        {/* Collapsible metadata: Summary + Tags + Attachments */}
+        <div className="detail-section detail-meta-toggle" onClick={() => setMetaCollapsed(c => !c)} style={{ cursor: "pointer", userSelect: "none" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--text-faint)" strokeWidth="2.5"
+              style={{ transform: metaCollapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+            <span className="field-label" style={{ marginBottom: 0 }}>Details</span>
+            {metaCollapsed && tags.length > 0 && (
+              <span style={{ fontSize: 11, color: "var(--text-faint)" }}>
+                {tags.map(t => t.name).join(", ")}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {!metaCollapsed && <>
+        {/* Summary + Tags */}
         <div className="detail-section">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div className="field-label" style={{ marginBottom: 0 }}>Summary</div>
-            <button className="regenerate-btn" title="Regenerate summary with AI" disabled={regenerating === "summary"}
-              onClick={async () => { setRegenerating("summary"); await onRegenerateField(chat.id, "summary"); setRegenerating(null); }}>
-              {regenerating === "summary" ? <span className="regenerate-spinner" /> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>}
-            </button>
+            <div style={{ display: "flex", gap: 4 }}>
+              <button className="regenerate-btn" title="Regenerate summary with AI" disabled={regenerating === "summary"}
+                onClick={async () => { setRegenerating("summary"); await onRegenerateField(chat.id, "summary"); setRegenerating(null); }}>
+                {regenerating === "summary" ? <span className="regenerate-spinner" /> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>}
+              </button>
+              <button className="regenerate-btn" title="Regenerate tags with AI" disabled={regenerating === "tags"}
+                onClick={async () => { setRegenerating("tags"); await onRegenerateField(chat.id, "tags"); setRegenerating(null); }}>
+                {regenerating === "tags" ? <span className="regenerate-spinner" /> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" /><path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" /></svg>}
+              </button>
+            </div>
           </div>
           <textarea className="detail-textarea" value={summaryValue} onChange={(e) => setSummaryValue(e.target.value)}
             onBlur={handleSummarySave} placeholder="Add a summary..." rows={3} />
-        </div>
-
-        {/* Tags */}
-        <div className="detail-section">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div className="field-label" style={{ marginBottom: 0 }}>Tags</div>
-            <button className="regenerate-btn" title="Regenerate tags with AI" disabled={regenerating === "tags"}
-              onClick={async () => { setRegenerating("tags"); await onRegenerateField(chat.id, "tags"); setRegenerating(null); }}>
-              {regenerating === "tags" ? <span className="regenerate-spinner" /> : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>}
-            </button>
-          </div>
-          {tags.length > 0 && (
-            <div className="tag-list">
-              {tags.map((tag) => (
-                <span key={tag.id} className="tag-pill">
-                  <span className="dot" style={{ backgroundColor: tag.color || "#88C0D0", width: 6, height: 6, borderRadius: "50%", flexShrink: 0 }} />
-                  {tag.name}
-                  <button className="remove" onClick={() => onRemoveTag(chat.id, tag.id)}>&times;</button>
-                </span>
-              ))}
-            </div>
-          )}
-          <div style={{ position: "relative" }} ref={tagDropdownRef}>
-            <input className="tag-input" value={tagSearch}
+          <div className="tag-list">
+            {tags.map((tag) => (
+              <span key={tag.id} className="tag-pill">
+                <span className="dot" style={{ backgroundColor: tag.color || "#88C0D0", width: 6, height: 6, borderRadius: "50%", flexShrink: 0 }} />
+                {tag.name}
+                <button className="remove" onClick={() => onRemoveTag(chat.id, tag.id)}>&times;</button>
+              </span>
+            ))}
+            <div style={{ position: "relative", flex: "1 1 80px", minWidth: 80 }} ref={tagDropdownRef}>
+              <input className="tag-input" value={tagSearch}
               name="mnemo-tag-search" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} data-form-type="other" data-1p-ignore
               onChange={(e) => { setTagSearch(e.target.value); setShowTagDropdown(true); setTagHighlight(-1); }}
               onFocus={() => { setShowTagDropdown(true); setTagHighlight(-1); }}
@@ -585,41 +596,53 @@ export default function ChatDetail({
                 )}
               </div>
             )}
+            </div>
+          </div>
+
+          {/* Attachments */}
+          <div className="attachment-list">
+            {attachments.map((att) => {
+              const ext = att.filename.split(".").pop()?.toLowerCase() || "";
+              const previewable = ["png","jpg","jpeg","gif","webp","svg","bmp","ico","md","markdown","jsx","tsx","html","htm"].includes(ext) || att.file_path.startsWith("data:");
+              return (
+              <span key={att.id} className="attachment-chip">
+                <span className="attachment-name" onClick={previewable ? () => handleOpenAttachment(att) : undefined} style={previewable ? { cursor: "pointer" } : undefined}>{att.filename}</span>
+                <span className="attachment-chip-actions">
+                  {previewable && <button className="open-btn" onClick={() => handleOpenAttachment(att)} title="Open">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  </button>}
+                  <button className="open-btn" title="Download" onClick={async () => {
+                    const ext = att.filename.split(".").pop() || "";
+                    const dest = await import("@tauri-apps/plugin-dialog").then(d => d.save({ defaultPath: att.filename, filters: [{ name: "File", extensions: [ext] }] }));
+                    if (dest) {
+                      const resolved = await resolveAttachmentPath(att.file_path);
+                      const { copyFile } = await import("@tauri-apps/plugin-fs");
+                      await copyFile(resolved, dest);
+                    }
+                  }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                  </button>
+                  {confirmRemoveAtt === att.id ? (<>
+                    <button className="remove-btn" style={{ color: "var(--red)" }} onClick={() => { onRemoveAttachment(att.id); setConfirmRemoveAtt(null); }} title="Confirm">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    </button>
+                    <button className="remove-btn" onClick={() => setConfirmRemoveAtt(null)} title="Cancel">&times;</button>
+                  </>) : (
+                    <button className="remove-btn" onClick={() => setConfirmRemoveAtt(att.id)} title="Remove">&times;</button>
+                  )}
+                </span>
+              </span>
+              );
+            })}
+            <button className="link-btn" onClick={handleAttachFile}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Attach
+            </button>
           </div>
         </div>
-
-        {/* Attachments */}
-        <div className="detail-section">
-          <div className="field-label">Attachments</div>
-          {attachments.map((att) => {
-            const ext = att.filename.split(".").pop()?.toLowerCase() || "";
-            const previewable = ["png","jpg","jpeg","gif","webp","svg","bmp","ico","md","markdown","jsx","tsx","html","htm"].includes(ext) || att.file_path.startsWith("data:");
-            return (
-            <div key={att.id} className="attachment-row">
-              <span className="attachment-name">{att.filename}</span>
-              <div className="attachment-actions">
-                {previewable && <button className="open-btn" onClick={() => handleOpenAttachment(att)}>Open</button>}
-                <button className="open-btn" onClick={async () => {
-                  const ext = att.filename.split(".").pop() || "";
-                  const dest = await import("@tauri-apps/plugin-dialog").then(d => d.save({ defaultPath: att.filename, filters: [{ name: "File", extensions: [ext] }] }));
-                  if (dest) {
-                    const resolved = await resolveAttachmentPath(att.file_path);
-                    const { copyFile } = await import("@tauri-apps/plugin-fs");
-                    await copyFile(resolved, dest);
-                  }
-                }}>Download</button>
-                <button className="remove-btn" onClick={() => onRemoveAttachment(att.id)}>&times;</button>
-              </div>
-            </div>
-            );
-          })}
-          <button className="link-btn" onClick={handleAttachFile}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Attach file
-          </button>
-        </div>
+        </>}
 
         {/* Content area: markdown + optional TOC sidebar */}
         <div className="detail-content-area">

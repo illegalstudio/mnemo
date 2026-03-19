@@ -898,7 +898,7 @@ html, body, #root {
 .detail-textarea::placeholder { color: var(--text-faint); }
 
 /* Tags in detail */
-.tag-list { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 
 .tag-pill {
   display: inline-flex;
@@ -928,10 +928,10 @@ html, body, #root {
 
 .tag-input {
   width: 100%;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 4px 8px;
   font-size: 12.5px;
   color: var(--text-primary);
   outline: none;
@@ -939,7 +939,7 @@ html, body, #root {
   font-family: inherit;
 }
 
-.tag-input:focus { border-color: var(--accent); }
+.tag-input:focus { border-color: var(--border); background: var(--bg-surface); }
 .tag-input::placeholder { color: var(--text-faint); }
 
 .tag-dropdown {
@@ -978,57 +978,77 @@ html, body, #root {
 .tag-dropdown button.create.highlighted { color: var(--accent); }
 
 /* Attachments */
-.attachment-row {
+.attachment-list {
   display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
   align-items: center;
-  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  padding: 6px 10px;
-  margin-bottom: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
-.attachment-name {
-  font-size: 12.5px;
-  color: var(--text-secondary);
+.attachment-chip .attachment-name {
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
 }
 
-.attachment-actions { display: flex; gap: 8px; margin-left: 8px; flex-shrink: 0; }
+.attachment-chip-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 2px;
+}
 
-.attachment-actions button {
+.attachment-chip-actions button {
   border: none;
   background: none;
-  font-size: 11px;
+  padding: 0 2px;
   cursor: pointer;
   transition: color 0.12s;
   font-family: inherit;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
 }
 
-.attachment-actions .open-btn { color: var(--accent); }
-.attachment-actions .open-btn:hover { color: var(--accent-hover); }
-.attachment-actions .remove-btn { color: var(--text-faint); }
-.attachment-actions .remove-btn:hover { color: var(--red); }
+.attachment-chip-actions .open-btn { color: var(--accent); }
+.attachment-chip-actions .open-btn:hover { color: var(--accent-hover); }
+.attachment-chip-actions .remove-btn { color: var(--text-faint); font-size: 13px; }
+.attachment-chip-actions .remove-btn:hover { color: var(--red); }
 
 .link-btn {
-  border: none;
-  background: none;
+  border: 1px dashed var(--border);
+  background: transparent;
   font-size: 12px;
-  color: var(--accent);
+  color: var(--text-faint);
   cursor: pointer;
-  padding: 0;
-  display: flex;
+  padding: 3px 10px;
+  border-radius: 6px;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: color 0.12s;
-  margin-top: 6px;
+  transition: all 0.15s;
+  font-family: inherit;
 }
 
-.link-btn:hover { color: var(--accent-hover); }
+.link-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
 
 /* TOC */
 .toc-item {
