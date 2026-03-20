@@ -153,16 +153,6 @@ export function convertHtmlToMarkdown(raw: string): {
   const parser = new DOMParser();
   const doc = parser.parseFromString(`<body>${html}</body>`, "text/html");
 
-  // Sanitize: remove dangerous elements and attributes
-  doc.querySelectorAll("script, iframe, object, embed, link[rel=import]").forEach(el => el.remove());
-  doc.querySelectorAll("*").forEach(el => {
-    for (const attr of [...el.attributes]) {
-      if (attr.name.startsWith("on") || (attr.name === "href" && attr.value.startsWith("javascript:"))) {
-        el.removeAttribute(attr.name);
-      }
-    }
-  });
-
   const turndown = new TurndownService({
     headingStyle: "atx",
     codeBlockStyle: "fenced",

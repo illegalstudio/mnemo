@@ -470,21 +470,13 @@ export async function insertTag(
 ): Promise<Tag> {
   const d = await getDb();
   const id = uuidv4();
-  let slug = name.toLowerCase().replace(/\s+/g, "-");
+  const slug = name.toLowerCase().replace(/\s+/g, "-");
 
-  // Handle duplicate slugs by appending a number
-  const existing = await d.select<{ slug: string }[]>(
-    "SELECT slug FROM tags WHERE slug = ? OR slug LIKE ?",
-    [slug, `${slug}-%`]
+  // Check for existing tag with same slug — return it instead of creating duplicate
+  const existing = await d.select<Tag[]>(
+    "SELECT * FROM tags WHERE slug = ?", [slug]
   );
-  if (existing.length > 0) {
-    const existingSlugs = new Set(existing.map(e => e.slug));
-    if (existingSlugs.has(slug)) {
-      let n = 2;
-      while (existingSlugs.has(`${slug}-${n}`)) n++;
-      slug = `${slug}-${n}`;
-    }
-  }
+  if (existing.length > 0) return existing[0];
 
   await d.execute(
     `INSERT INTO tags (id, name, slug, parent_id, color)
