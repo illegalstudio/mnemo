@@ -128,6 +128,7 @@ export async function initDb(): Promise<Database> {
     const allAttachments = await instance.select<{ id: string; filename: string; file_path: string }[]>(
       "SELECT id, filename, file_path FROM attachments"
     );
+    let allMigrated = true;
     for (const att of allAttachments) {
       // Skip data: URIs and already-migrated relative paths
       if (att.file_path.startsWith("data:") || !att.file_path.startsWith("/")) continue;
@@ -139,14 +140,20 @@ export async function initDb(): Promise<Database> {
             "UPDATE attachments SET file_path = ? WHERE id = ?",
             [relativePath, att.id]
           );
+        } else {
+          // Source file gone — can't migrate, but not a blocker
         }
       } catch (e) {
         console.error(`[migration] Failed to migrate attachment ${att.id}:`, e);
+        allMigrated = false;
       }
     }
-    await instance.execute(
-      "INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_attachments_v1', 'done')"
-    );
+    // Only mark done if all copyable attachments were migrated
+    if (allMigrated) {
+      await instance.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES ('migration_attachments_v1', 'done')"
+      );
+    }
   }
 
   db = instance;
@@ -433,6 +440,8 @@ export async function permanentlyDeleteChat(id: string): Promise<void> {
   await d.execute("DELETE FROM attachments WHERE chat_id = ?", [id]);
   await d.execute("DELETE FROM chat_tags WHERE chat_id = ?", [id]);
   await d.execute("DELETE FROM chats WHERE id = ?", [id]);
+  // Remove from search index
+  try { await invoke("delete_from_index", { id }); } catch { /* index entry may not exist */ }
 }
 
 export async function emptyTrash(): Promise<void> {

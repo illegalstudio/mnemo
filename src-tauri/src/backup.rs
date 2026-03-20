@@ -92,7 +92,17 @@ fn restore_snapshot_zip(zip_path: &PathBuf, db_dest: &PathBuf, att_dir: &PathBuf
     let mut archive =
         ZipArchive::new(zip_file).map_err(|e| format!("Not a valid zip file: {}", e))?;
 
-    // Extract database
+    // Extract everything to a temp directory first, then swap on success
+    let data_dir = db_dest.parent().ok_or("Invalid db path")?;
+    let tmp_dir = data_dir.join(".restore_tmp");
+    if tmp_dir.exists() {
+        let _ = fs::remove_dir_all(&tmp_dir);
+    }
+    fs::create_dir_all(&tmp_dir)
+        .map_err(|e| format!("Failed to create temp dir: {}", e))?;
+
+    // Extract database to temp
+    let tmp_db = tmp_dir.join("mnemo.db");
     {
         let mut entry = archive
             .by_name(DB_NAME_IN_ZIP)
@@ -101,15 +111,11 @@ fn restore_snapshot_zip(zip_path: &PathBuf, db_dest: &PathBuf, att_dir: &PathBuf
         entry
             .read_to_end(&mut data)
             .map_err(|e| format!("Failed to read from zip: {}", e))?;
-        fs::write(db_dest, &data).map_err(|e| format!("Failed to write database: {}", e))?;
+        fs::write(&tmp_db, &data).map_err(|e| format!("Failed to write temp database: {}", e))?;
     }
 
-    // Remove existing attachments directory and recreate
-    if att_dir.exists() {
-        let _ = fs::remove_dir_all(att_dir);
-    }
-
-    // Extract attachments (if any in the zip)
+    // Extract attachments to temp
+    let tmp_att = tmp_dir.join("attachments");
     let has_attachments = (0..archive.len()).any(|i| {
         archive
             .by_index(i)
@@ -118,15 +124,15 @@ fn restore_snapshot_zip(zip_path: &PathBuf, db_dest: &PathBuf, att_dir: &PathBuf
     });
 
     if has_attachments {
-        fs::create_dir_all(att_dir)
-            .map_err(|e| format!("Failed to create attachments dir: {}", e))?;
+        fs::create_dir_all(&tmp_att)
+            .map_err(|e| format!("Failed to create temp attachments dir: {}", e))?;
 
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
             let name = entry.name().to_string();
             if name.starts_with(ATTACHMENTS_PREFIX) && name.len() > ATTACHMENTS_PREFIX.len() {
                 let filename = &name[ATTACHMENTS_PREFIX.len()..];
-                let dest_path = att_dir.join(filename);
+                let dest_path = tmp_att.join(filename);
                 let mut data = Vec::new();
                 entry
                     .read_to_end(&mut data)
@@ -136,6 +142,21 @@ fn restore_snapshot_zip(zip_path: &PathBuf, db_dest: &PathBuf, att_dir: &PathBuf
             }
         }
     }
+
+    // All extracted successfully — now swap into place
+    fs::rename(&tmp_db, db_dest)
+        .map_err(|e| format!("Failed to replace database: {}", e))?;
+
+    if att_dir.exists() {
+        let _ = fs::remove_dir_all(att_dir);
+    }
+    if tmp_att.exists() {
+        fs::rename(&tmp_att, att_dir)
+            .map_err(|e| format!("Failed to replace attachments: {}", e))?;
+    }
+
+    // Cleanup temp dir
+    let _ = fs::remove_dir_all(&tmp_dir);
 
     Ok(())
 }

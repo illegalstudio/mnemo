@@ -100,7 +100,13 @@ export async function generateMetadata(
       "json",
     ]);
 
-    const output = await command.execute();
+    const TIMEOUT_MS = 60_000;
+    const output = await Promise.race([
+      command.execute(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("AI analysis timed out after 60s")), TIMEOUT_MS)
+      ),
+    ]);
     console.log("[metadata] exit code:", output.code);
 
     if (output.code !== 0) {
