@@ -305,17 +305,17 @@ export async function getFilteredChats(opts: {
   }
 
   // Tag filter: chat must have ALL selected tags (AND logic)
+  // One subquery per tag — simple, correct, and fast with indexes
   if (opts.tagIds && opts.tagIds.length > 0) {
     for (const tagId of opts.tagIds) {
       conditions.push(`c.id IN (
-        SELECT ct.chat_id FROM chat_tags ct
-        JOIN (
+        SELECT ct.chat_id FROM chat_tags ct WHERE ct.tag_id IN (
           WITH RECURSIVE tag_tree AS (
             SELECT id FROM tags WHERE id = ?
             UNION ALL
             SELECT t.id FROM tags t JOIN tag_tree tt ON t.parent_id = tt.id
           ) SELECT id FROM tag_tree
-        ) tt ON ct.tag_id = tt.id
+        )
       )`);
       params.push(tagId);
     }
@@ -470,7 +470,21 @@ export async function insertTag(
 ): Promise<Tag> {
   const d = await getDb();
   const id = uuidv4();
-  const slug = name.toLowerCase().replace(/\s+/g, "-");
+  let slug = name.toLowerCase().replace(/\s+/g, "-");
+
+  // Handle duplicate slugs by appending a number
+  const existing = await d.select<{ slug: string }[]>(
+    "SELECT slug FROM tags WHERE slug = ? OR slug LIKE ?",
+    [slug, `${slug}-%`]
+  );
+  if (existing.length > 0) {
+    const existingSlugs = new Set(existing.map(e => e.slug));
+    if (existingSlugs.has(slug)) {
+      let n = 2;
+      while (existingSlugs.has(`${slug}-${n}`)) n++;
+      slug = `${slug}-${n}`;
+    }
+  }
 
   await d.execute(
     `INSERT INTO tags (id, name, slug, parent_id, color)

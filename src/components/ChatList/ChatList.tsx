@@ -104,7 +104,7 @@ export default function ChatList({
     let remaining = 0;
     for (let i = 0; i < droppedFiles.length; i++) {
       const file = droppedFiles[i];
-      if (!file.name.endsWith(".md")) continue;
+      if (!file.name.endsWith(".md") || file.size > 10 * 1024 * 1024) continue; // skip non-md and >10MB
       remaining++;
       const reader = new FileReader();
       reader.onload = () => {

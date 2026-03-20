@@ -318,15 +318,21 @@ export function useDatabase() {
   }, [selectedChat?.id, refreshTags]);
 
   const addAttachment = useCallback(async (chatId: string, filename: string, filePath: string, mimeType: string | null) => {
-    const { copyAttachmentToAppData } = await import('../lib/attachments');
+    const { copyAttachmentToAppData, deleteAttachmentFile } = await import('../lib/attachments');
     const relativePath = await copyAttachmentToAppData(filePath, filename);
-    await db.insertAttachment({
-      chat_id: chatId,
-      filename,
-      file_path: relativePath,
-      mime_type: mimeType,
-      attached_at: new Date().toISOString(),
-    });
+    try {
+      await db.insertAttachment({
+        chat_id: chatId,
+        filename,
+        file_path: relativePath,
+        mime_type: mimeType,
+        attached_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      // DB insert failed — clean up the copied file
+      await deleteAttachmentFile(relativePath);
+      throw e;
+    }
     if (selectedChat?.id === chatId) {
       const attachments = await db.getAttachments(chatId);
       setSelectedChatAttachments(attachments);
@@ -335,15 +341,18 @@ export function useDatabase() {
 
   const removeAttachment = useCallback(async (attachmentId: string) => {
     // Get file path before deleting the record
+    let fileToDelete: string | null = null;
     if (selectedChat) {
       const attachments = await db.getAttachments(selectedChat.id);
       const att = attachments.find(a => a.id === attachmentId);
-      if (att) {
-        const { deleteAttachmentFile } = await import('../lib/attachments');
-        await deleteAttachmentFile(att.file_path);
-      }
+      if (att) fileToDelete = att.file_path;
     }
+    // Delete DB record first, then file (file orphan is less harmful than broken reference)
     await db.deleteAttachment(attachmentId);
+    if (fileToDelete) {
+      const { deleteAttachmentFile } = await import('../lib/attachments');
+      await deleteAttachmentFile(fileToDelete);
+    }
     if (selectedChat) {
       const attachments = await db.getAttachments(selectedChat.id);
       setSelectedChatAttachments(attachments);

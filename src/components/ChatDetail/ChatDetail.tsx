@@ -250,13 +250,18 @@ export default function ChatDetail({
     const markElements: HTMLElement[] = [];
     for (let i = matches.length - 1; i >= 0; i--) {
       const { node: textNode, index } = matches[i];
-      const range = document.createRange();
-      range.setStart(textNode, index);
-      range.setEnd(textNode, index + chatSearchTerm.length);
-      const mark = document.createElement("mark");
-      mark.className = "search-highlight";
-      range.surroundContents(mark);
-      markElements.unshift(mark);
+      try {
+        const range = document.createRange();
+        range.setStart(textNode, index);
+        range.setEnd(textNode, index + chatSearchTerm.length);
+        const mark = document.createElement("mark");
+        mark.className = "search-highlight";
+        mark.appendChild(range.extractContents());
+        range.insertNode(mark);
+        markElements.unshift(mark);
+      } catch {
+        // Skip if range spans across element boundaries
+      }
     }
 
     // Scroll to current match
