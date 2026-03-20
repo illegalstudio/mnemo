@@ -105,6 +105,14 @@ export async function initDb(): Promise<Database> {
     // Column already exists
   }
 
+  // Indexes for performance
+  await instance.execute("CREATE INDEX IF NOT EXISTS idx_chats_folder_id ON chats(folder_id)");
+  await instance.execute("CREATE INDEX IF NOT EXISTS idx_chats_deleted_at ON chats(deleted_at)");
+  await instance.execute("CREATE INDEX IF NOT EXISTS idx_chats_imported_at ON chats(imported_at DESC)");
+  await instance.execute("CREATE INDEX IF NOT EXISTS idx_chat_tags_chat_id ON chat_tags(chat_id)");
+  await instance.execute("CREATE INDEX IF NOT EXISTS idx_chat_tags_tag_id ON chat_tags(tag_id)");
+  await instance.execute("CREATE INDEX IF NOT EXISTS idx_attachments_chat_id ON attachments(chat_id)");
+
   // Purge chats in trash older than 30 days
   await instance.execute(
     "DELETE FROM chats WHERE deleted_at IS NOT NULL AND deleted_at < datetime('now', '-30 days')"
@@ -254,6 +262,63 @@ export async function searchChats(query: string): Promise<Chat[]> {
   const idOrder = new Map(ids.map((id, i) => [id, i]));
   results.sort((a, b) => (idOrder.get(a.id) ?? 0) - (idOrder.get(b.id) ?? 0));
   return results;
+}
+
+/**
+ * Fetch chats with all filters applied in SQL (folder + tags + source).
+ * Avoids N+1 queries by doing tag filtering via JOIN.
+ */
+export async function getFilteredChats(opts: {
+  folderId?: string | null;
+  tagIds?: string[];
+  source?: string | null;
+}): Promise<Chat[]> {
+  const d = await getDb();
+  const conditions: string[] = ["c.deleted_at IS NULL"];
+  const params: unknown[] = [];
+
+  // Folder filter
+  if (opts.folderId === "__unfiled__") {
+    conditions.push("c.folder_id IS NULL");
+  } else if (opts.folderId) {
+    conditions.push(`c.folder_id IN (
+      WITH RECURSIVE folder_tree AS (
+        SELECT id FROM folders WHERE id = ?
+        UNION ALL
+        SELECT f.id FROM folders f JOIN folder_tree ft ON f.parent_id = ft.id
+      ) SELECT id FROM folder_tree
+    )`);
+    params.push(opts.folderId);
+  }
+
+  // Source filter
+  if (opts.source) {
+    conditions.push("c.source = ?");
+    params.push(opts.source);
+  }
+
+  // Tag filter: chat must have ALL selected tags (AND logic)
+  if (opts.tagIds && opts.tagIds.length > 0) {
+    for (const tagId of opts.tagIds) {
+      conditions.push(`c.id IN (
+        SELECT ct.chat_id FROM chat_tags ct
+        JOIN (
+          WITH RECURSIVE tag_tree AS (
+            SELECT id FROM tags WHERE id = ?
+            UNION ALL
+            SELECT t.id FROM tags t JOIN tag_tree tt ON t.parent_id = tt.id
+          ) SELECT id FROM tag_tree
+        ) tt ON ct.tag_id = tt.id
+      )`);
+      params.push(tagId);
+    }
+  }
+
+  return d.select<Chat[]>(
+    `SELECT c.*, (SELECT COUNT(*) FROM attachments a WHERE a.chat_id = c.id) as attachment_count
+     FROM chats c WHERE ${conditions.join(" AND ")} ORDER BY c.imported_at DESC`,
+    params
+  );
 }
 
 export async function getChatsByTag(tagId: string): Promise<Chat[]> {

@@ -38,47 +38,27 @@ export function useDatabase() {
   }, []);
 
   const refreshChats = useCallback(async () => {
-    // Start with all chats or search results
     let result: Chat[];
     if (searchQuery) {
       result = await db.searchChats(searchQuery);
-    } else {
-      result = await db.getAllChats();
-    }
-
-    // Filter by folder (including subfolders via recursive CTE)
-    if (selectedFolderId === "__unfiled__") {
-      result = result.filter(c => !c.folder_id);
-    } else if (selectedFolderId) {
-      const folderChats = await db.getChatsByFolder(selectedFolderId);
-      const folderChatIds = new Set(folderChats.map(c => c.id));
-      result = result.filter(c => folderChatIds.has(c.id));
-    }
-
-    // Filter by source
-    if (selectedSource) {
-      result = result.filter(c => c.source === selectedSource);
-    }
-
-    // Filter by tags (AND: chat must have ALL selected tags)
-    if (selectedTagIds.size > 0) {
-      const filtered: Chat[] = [];
-      for (const chat of result) {
-        const chatTags = await db.getTagsForChat(chat.id);
-        const chatTagIds = new Set(chatTags.map(t => t.id));
-        let hasAll = true;
-        for (const tagId of selectedTagIds) {
-          if (!chatTagIds.has(tagId)) {
-            const chatsForTag = await db.getChatsByTag(tagId);
-            if (!chatsForTag.some(c => c.id === chat.id)) {
-              hasAll = false;
-              break;
-            }
-          }
-        }
-        if (hasAll) filtered.push(chat);
+      // Apply client-side filters to search results (search uses Tantivy, not SQL)
+      if (selectedFolderId === "__unfiled__") {
+        result = result.filter(c => !c.folder_id);
+      } else if (selectedFolderId) {
+        const folderChats = await db.getChatsByFolder(selectedFolderId);
+        const folderChatIds = new Set(folderChats.map(c => c.id));
+        result = result.filter(c => folderChatIds.has(c.id));
       }
-      result = filtered;
+      if (selectedSource) {
+        result = result.filter(c => c.source === selectedSource);
+      }
+    } else {
+      // Single optimized SQL query with all filters
+      result = await db.getFilteredChats({
+        folderId: selectedFolderId,
+        tagIds: selectedTagIds.size > 0 ? [...selectedTagIds] : undefined,
+        source: selectedSource,
+      });
     }
 
     setChats(result);
@@ -265,16 +245,20 @@ export function useDatabase() {
 
   const deleteChat = useCallback(async (id: string) => {
     if (selectedChat?.id === id) {
-      const idx = chats.findIndex(c => c.id === id);
-      const next = chats[idx + 1] || chats[idx - 1] || null;
-      setSelectedChat(next);
+      // Pick next/prev chat from current state without depending on `chats`
+      setChats(prev => {
+        const idx = prev.findIndex(c => c.id === id);
+        const next = prev[idx + 1] || prev[idx - 1] || null;
+        setSelectedChat(next);
+        return prev;
+      });
     }
     await db.deleteChat(id);
     await refreshChats();
     await refreshTags();
     await refreshFolders();
     await refreshTrash();
-  }, [refreshChats, refreshTags, refreshFolders, refreshTrash, selectedChat?.id, chats]);
+  }, [refreshChats, refreshTags, refreshFolders, refreshTrash, selectedChat?.id]);
 
   const restoreChat = useCallback(async (id: string) => {
     await db.restoreChat(id);
