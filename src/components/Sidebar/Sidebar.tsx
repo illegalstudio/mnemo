@@ -158,8 +158,11 @@ export function Sidebar({
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          Import
+          Import from Markdown
         </button>
+        <p style={{ fontSize: 10, color: "var(--text-faint)", lineHeight: 1.4, marginTop: 6, textAlign: "center" }}>
+          Or install a bookmarklet from <span style={{ cursor: "pointer", color: "var(--accent)", textDecoration: "underline" }} onClick={onOpenSettings}>Settings</span> to capture chats directly from your browser.
+        </p>
       </div>
 
       <div className="sidebar-search">
