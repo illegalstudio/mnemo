@@ -160,7 +160,7 @@ export function Sidebar({
           </svg>
           Import from Markdown
         </button>
-        <p style={{ fontSize: 10, color: "var(--text-faint)", lineHeight: 1.4, marginTop: 6, textAlign: "center" }}>
+        <p style={{ fontSize: 10, color: "var(--text-faint)", lineHeight: 1.4, marginTop: 6, textAlign: "left" }}>
           Or install a bookmarklet from <span style={{ cursor: "pointer", color: "var(--accent)", textDecoration: "underline" }} onClick={onOpenSettings}>Settings</span> to capture chats directly from your browser.
         </p>
       </div>

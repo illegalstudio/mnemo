@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Release credentials
+.env.release
+
 # Claude Code
 .claude/settings.local.json
 
