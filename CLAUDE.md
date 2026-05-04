@@ -37,7 +37,7 @@ cd src-tauri && cargo check  # Rust type check
 - **Snapshots**: `app_data_dir/snapshot-{timestamp}.mnemo.zip` containing DB + attachments
 
 ### Shell permissions
-Shell commands allowed in `src-tauri/capabilities/default.json`: `claude` (AI analysis) and `open` (system file opener). Adding new shell commands requires updating both `shell:allow-spawn` and `shell:allow-execute` entries.
+Shell commands allowed in `src-tauri/capabilities/default.json`: `open` (system file opener). AI analysis tools are executed by dedicated Rust Tauri commands so user-configured absolute binary paths do not require `plugin-shell` permissions.
 
 ## Key Design Decisions
 
@@ -48,7 +48,7 @@ Files are copied into app data dir on attach, with relative paths (`attachments/
 Zip contains `mnemo.db` + `attachments/` directory. Before creating, a WAL checkpoint is flushed via rusqlite. Before restoring, a safety snapshot is auto-created. Restore extracts to a temp dir first, then swaps atomically. Tantivy index is cleared on restore and rebuilt on next launch.
 
 ### AI Analysis
-Uses Claude Code CLI (`claude -p ... --output-format json`). Tool availability is checked via `claude --version`. Has 60s timeout. `ToolNotFoundError` is propagated to UI as a modal. Analysis is optional and runs post-import.
+Uses a configured Claude Code or Codex CLI binary. Claude runs as `claude -p ... --output-format json`; Codex runs through `codex exec` in read-only, non-interactive mode. Tool availability is checked with `--version`. Has 60s timeout. `ToolNotFoundError` is propagated to UI as a modal. Analysis is optional and runs post-import.
 
 ### Duplicate Detection
 On import, compares first 800 normalized chars of content against existing chats with same source. If match found, prompts user to update existing or create new.
