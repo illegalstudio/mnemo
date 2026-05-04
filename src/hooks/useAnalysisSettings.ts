@@ -16,10 +16,17 @@ export const LANGUAGES = [
 ] as const;
 
 export type LangCode = (typeof LANGUAGES)[number]["code"];
+export type AnalysisTool = "claude-code" | "codex";
+
+export const ANALYSIS_TOOLS: { value: AnalysisTool; label: string; defaultBinary: string }[] = [
+  { value: "claude-code", label: "Claude Code (CLI)", defaultBinary: "claude" },
+  { value: "codex", label: "Codex (CLI)", defaultBinary: "codex" },
+];
 
 export interface AnalysisSettings {
   enabled: boolean;
-  tool: "claude-code";
+  tool: AnalysisTool;
+  toolPaths: Record<AnalysisTool, string>;
   fields: {
     title: boolean;
     summary: boolean;
@@ -39,6 +46,7 @@ function getDefaults(): AnalysisSettings {
   return {
     enabled: true,
     tool: "claude-code",
+    toolPaths: { "claude-code": "", codex: "" },
     fields: { title: true, summary: true, tags: true },
     languages: { title: "auto", summary: "auto", tags: "en" },
     tagCount: { min: 3, max: 6 },
@@ -58,12 +66,18 @@ export function useAnalysisSettings() {
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
+          const defaults = getDefaults();
+          const tool = ANALYSIS_TOOLS.some((t) => t.value === parsed.tool)
+            ? parsed.tool as AnalysisTool
+            : defaults.tool;
           setSettings({
-            ...getDefaults(),
+            ...defaults,
             ...parsed,
-            fields: { ...getDefaults().fields, ...parsed.fields },
-            languages: { ...getDefaults().languages, ...parsed.languages },
-            tagCount: { ...getDefaults().tagCount, ...parsed.tagCount },
+            tool,
+            toolPaths: { ...defaults.toolPaths, ...parsed.toolPaths },
+            fields: { ...defaults.fields, ...parsed.fields },
+            languages: { ...defaults.languages, ...parsed.languages },
+            tagCount: { ...defaults.tagCount, ...parsed.tagCount },
           });
         } catch {
           // ignore

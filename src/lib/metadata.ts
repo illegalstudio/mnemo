@@ -1,26 +1,37 @@
-import { Command } from "@tauri-apps/plugin-shell";
+import { invoke } from "@tauri-apps/api/core";
 import type { MetadataResult } from "../types";
 import type { AnalysisSettings } from "../hooks/useAnalysisSettings";
-import { LANGUAGES } from "../hooks/useAnalysisSettings";
+import { ANALYSIS_TOOLS, LANGUAGES } from "../hooks/useAnalysisSettings";
 
 export class ToolNotFoundError extends Error {
   constructor(tool: string) {
-    super(`Il tool "${tool}" non è stato trovato nel sistema. Assicurati che sia installato e disponibile nel PATH.`);
+    super(`Il tool "${tool}" non è stato trovato nel sistema. Imposta il percorso del binario nelle preferenze o assicurati che sia disponibile nel PATH.`);
     this.name = "ToolNotFoundError";
   }
 }
 
-const TOOL_COMMANDS: Record<AnalysisSettings["tool"], string> = {
-  "claude-code": "claude",
-};
+interface ToolExecutionOutput {
+  code: number | null;
+  stdout: string;
+  stderr: string;
+}
 
-export async function checkToolAvailable(tool: AnalysisSettings["tool"]): Promise<boolean> {
-  const cmd = TOOL_COMMANDS[tool];
-  if (!cmd) return false;
+function getToolPath(settings: Pick<AnalysisSettings, "tool" | "toolPaths">): string | null {
+  return settings.toolPaths[settings.tool]?.trim() || null;
+}
+
+function toolLabel(settings: Pick<AnalysisSettings, "tool">): string {
+  return ANALYSIS_TOOLS.find((tool) => tool.value === settings.tool)?.label ?? settings.tool;
+}
+
+export async function checkToolAvailable(
+  settings: Pick<AnalysisSettings, "tool" | "toolPaths">
+): Promise<boolean> {
   try {
-    const command = Command.create(cmd, ["--version"]);
-    const output = await command.execute();
-    return output.code === 0;
+    return await invoke<boolean>("check_analysis_tool", {
+      tool: settings.tool,
+      binaryPath: getToolPath(settings),
+    });
   } catch {
     return false;
   }
@@ -84,25 +95,21 @@ export async function generateMetadata(
     const prompt = buildPrompt(settings, existingTags);
     if (!prompt) return null;
 
-    const toolCmd = TOOL_COMMANDS[settings.tool];
-    const available = await checkToolAvailable(settings.tool);
+    const available = await checkToolAvailable(settings);
     if (!available) {
-      throw new ToolNotFoundError(toolCmd);
+      throw new ToolNotFoundError(getToolPath(settings) ?? toolLabel(settings));
     }
 
     const truncated = contentMd.length > 8000 ? contentMd.slice(0, 8000) + "\n\n[truncated]" : contentMd;
     const fullPrompt = `${prompt}\n\nHere is the chat transcript:\n\n${truncated}`;
 
-    const command = Command.create(toolCmd, [
-      "-p",
-      fullPrompt,
-      "--output-format",
-      "json",
-    ]);
-
     const TIMEOUT_MS = 60_000;
     const output = await Promise.race([
-      command.execute(),
+      invoke<ToolExecutionOutput>("run_analysis_tool", {
+        tool: settings.tool,
+        binaryPath: getToolPath(settings),
+        prompt: fullPrompt,
+      }),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("AI analysis timed out after 60s")), TIMEOUT_MS)
       ),

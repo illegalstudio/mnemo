@@ -27,11 +27,6 @@
       "identifier": "shell:allow-spawn",
       "allow": [
         {
-          "name": "claude",
-          "cmd": "claude",
-          "args": true
-        },
-        {
           "name": "open",
           "cmd": "open",
           "args": true
@@ -41,11 +36,6 @@
     {
       "identifier": "shell:allow-execute",
       "allow": [
-        {
-          "name": "claude",
-          "cmd": "claude",
-          "args": true
-        },
         {
           "name": "open",
           "cmd": "open",

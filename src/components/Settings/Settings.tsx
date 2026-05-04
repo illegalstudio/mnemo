@@ -4,7 +4,7 @@ import { save, open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { closeDb } from "../../lib/db";
 import type { ThemeMode } from "../../hooks/useTheme";
 import type { AnalysisSettings, LangCode } from "../../hooks/useAnalysisSettings";
-import { LANGUAGES } from "../../hooks/useAnalysisSettings";
+import { ANALYSIS_TOOLS, LANGUAGES } from "../../hooks/useAnalysisSettings";
 import { bookmarklets } from "../../lib/bookmarklets";
 import { checkToolAvailable } from "../../lib/metadata";
 
@@ -63,6 +63,8 @@ export default function Settings({
   const [toolAvailable, setToolAvailable] = useState<boolean | null>(null);
   const [toolChecking, setToolChecking] = useState(false);
   const [storageUsage, setStorageUsage] = useState<{ db_bytes: number; attachments_bytes: number; attachments_count: number } | null>(null);
+  const currentTool = ANALYSIS_TOOLS.find((tool) => tool.value === analysisSettings.tool) ?? ANALYSIS_TOOLS[0];
+  const currentToolPath = analysisSettings.toolPaths[analysisSettings.tool] ?? "";
 
   const loadSnapshots = useCallback(async () => {
     try {
@@ -84,14 +86,22 @@ export default function Settings({
   useEffect(() => {
     if (!analysisSettings.enabled) {
       setToolAvailable(null);
+      setToolChecking(false);
       return;
     }
+    let cancelled = false;
     setToolChecking(true);
-    checkToolAvailable(analysisSettings.tool).then((ok) => {
+    setToolAvailable(null);
+    checkToolAvailable({
+      tool: analysisSettings.tool,
+      toolPaths: analysisSettings.toolPaths,
+    }).then((ok) => {
+      if (cancelled) return;
       setToolAvailable(ok);
       setToolChecking(false);
     });
-  }, [analysisSettings.enabled, analysisSettings.tool]);
+    return () => { cancelled = true; };
+  }, [analysisSettings.enabled, analysisSettings.tool, analysisSettings.toolPaths]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -174,6 +184,26 @@ export default function Settings({
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const updateCurrentToolPath = (path: string) => {
+    onUpdateAnalysis({
+      toolPaths: {
+        ...analysisSettings.toolPaths,
+        [analysisSettings.tool]: path,
+      },
+    });
+  };
+
+  const handleChooseToolBinary = async () => {
+    const selected = await dialogOpen({
+      multiple: false,
+      directory: false,
+      title: `Select ${currentTool.label} binary`,
+    });
+    if (!selected) return;
+    const selectedPath = Array.isArray(selected) ? selected[0] : selected;
+    if (selectedPath) updateCurrentToolPath(selectedPath);
+  };
+
   return (
     <div className="settings-panel">
       <div className="settings-panel-header">
@@ -208,7 +238,7 @@ export default function Settings({
           <h3>AI Analysis</h3>
           <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.5 }}>
             Analizza automaticamente le chat importate per generare titolo, sommario e tag usando un modello AI.
-            Attualmente è supportato solo Claude Code (CLI) come tool di analisi.
+            Sono supportati Claude Code e Codex in modalità CLI.
           </p>
 
           <label className="settings-toggle">
@@ -231,14 +261,37 @@ export default function Settings({
                   onChange={(e) => onUpdateAnalysis({ tool: e.target.value as AnalysisSettings["tool"] })}
                   style={toolAvailable === false ? { borderColor: "var(--red)" } : undefined}
                 >
-                  <option value="claude-code">Claude Code (CLI)</option>
+                  {ANALYSIS_TOOLS.map((tool) => (
+                    <option key={tool.value} value={tool.value}>{tool.label}</option>
+                  ))}
                 </select>
+              </div>
+
+              {/* Binary path */}
+              <div>
+                <label className="settings-label">{currentTool.label} binary</label>
+                <div className="settings-path-row">
+                  <input
+                    type="text"
+                    className="settings-input settings-path-input"
+                    value={currentToolPath}
+                    placeholder={currentTool.defaultBinary}
+                    onChange={(e) => updateCurrentToolPath(e.target.value)}
+                    style={toolAvailable === false ? { borderColor: "var(--red)" } : undefined}
+                  />
+                  <button className="snapshot-restore-btn settings-browse-btn" onClick={handleChooseToolBinary}>
+                    Browse
+                  </button>
+                </div>
+                <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4, lineHeight: 1.4 }}>
+                  Lascia vuoto per usare <code>{currentTool.defaultBinary}</code> dal PATH.
+                </p>
                 {toolChecking && (
                   <p style={{ fontSize: 11, color: "var(--text-faint)", marginTop: 4 }}>Verifica disponibilità...</p>
                 )}
                 {toolAvailable === false && !toolChecking && (
                   <p style={{ fontSize: 11, color: "var(--red)", marginTop: 4, lineHeight: 1.4 }}>
-                    Tool non trovato nel sistema. Assicurati che Claude Code CLI sia installato e disponibile nel PATH.
+                    Tool non trovato. Se l'app è installata in Applications, seleziona il binario CLI esplicitamente.
                   </p>
                 )}
                 {toolAvailable === true && !toolChecking && (

@@ -2,11 +2,16 @@ mod backup;
 mod search;
 
 use search::SearchIndex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use std::process::Command as ProcessCommand;
 use tauri::Manager;
 
 #[tauri::command]
-fn search_chats(query: String, state: tauri::State<'_, SearchIndex>) -> Result<Vec<String>, String> {
+fn search_chats(
+    query: String,
+    state: tauri::State<'_, SearchIndex>,
+) -> Result<Vec<String>, String> {
     state.search(&query, 50).map_err(|e| e.to_string())
 }
 
@@ -41,14 +46,7 @@ struct ChatData {
 fn reindex_all(chats: Vec<ChatData>, state: tauri::State<'_, SearchIndex>) -> Result<(), String> {
     let docs: Vec<(String, String, String, String)> = chats
         .into_iter()
-        .map(|c| {
-            (
-                c.id,
-                c.title,
-                c.summary.unwrap_or_default(),
-                c.content_md,
-            )
-        })
+        .map(|c| (c.id, c.title, c.summary.unwrap_or_default(), c.content_md))
         .collect();
     state.reindex_all(&docs).map_err(|e| e.to_string())
 }
@@ -89,7 +87,144 @@ fn get_storage_usage(app: tauri::AppHandle) -> Result<StorageUsage, String> {
         }
     }
 
-    Ok(StorageUsage { db_bytes, attachments_bytes, attachments_count })
+    Ok(StorageUsage {
+        db_bytes,
+        attachments_bytes,
+        attachments_count,
+    })
+}
+
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+enum AnalysisTool {
+    ClaudeCode,
+    Codex,
+}
+
+#[derive(Serialize)]
+struct AnalysisToolOutput {
+    code: Option<i32>,
+    stdout: String,
+    stderr: String,
+}
+
+fn default_analysis_binary(tool: AnalysisTool) -> &'static str {
+    match tool {
+        AnalysisTool::ClaudeCode => "claude",
+        AnalysisTool::Codex => "codex",
+    }
+}
+
+fn resolve_analysis_binary(tool: AnalysisTool, binary_path: Option<String>) -> String {
+    binary_path
+        .map(|path| path.trim().to_string())
+        .filter(|path| !path.is_empty())
+        .unwrap_or_else(|| default_analysis_binary(tool).to_string())
+}
+
+fn path_env_for_binary(binary: &str) -> Option<std::ffi::OsString> {
+    let mut paths: Vec<PathBuf> = Vec::new();
+    let binary_path = Path::new(binary);
+
+    if binary_path.components().count() > 1 {
+        if let Some(parent) = binary_path.parent() {
+            if !parent.as_os_str().is_empty() {
+                paths.push(parent.to_path_buf());
+            }
+        }
+    }
+
+    if let Some(home) = std::env::var_os("HOME") {
+        let home = PathBuf::from(home);
+        paths.push(home.join(".local/bin"));
+        paths.push(home.join(".bun/bin"));
+        paths.push(home.join(".cargo/bin"));
+    }
+
+    paths.extend([
+        PathBuf::from("/opt/homebrew/bin"),
+        PathBuf::from("/usr/local/bin"),
+        PathBuf::from("/usr/bin"),
+        PathBuf::from("/bin"),
+        PathBuf::from("/usr/sbin"),
+        PathBuf::from("/sbin"),
+    ]);
+
+    if let Some(current_path) = std::env::var_os("PATH") {
+        paths.extend(std::env::split_paths(&current_path));
+    }
+
+    std::env::join_paths(paths).ok()
+}
+
+fn analysis_args(tool: AnalysisTool, prompt: String) -> Vec<String> {
+    match tool {
+        AnalysisTool::ClaudeCode => vec![
+            "-p".to_string(),
+            prompt,
+            "--output-format".to_string(),
+            "json".to_string(),
+        ],
+        AnalysisTool::Codex => vec![
+            "--ask-for-approval".to_string(),
+            "never".to_string(),
+            "exec".to_string(),
+            "--skip-git-repo-check".to_string(),
+            "--sandbox".to_string(),
+            "read-only".to_string(),
+            "--color".to_string(),
+            "never".to_string(),
+            "--ephemeral".to_string(),
+            prompt,
+        ],
+    }
+}
+
+fn process_command(binary: &str) -> ProcessCommand {
+    let mut command = ProcessCommand::new(binary);
+    if let Some(path_env) = path_env_for_binary(binary) {
+        command.env("PATH", path_env);
+    }
+    command
+}
+
+#[tauri::command]
+async fn check_analysis_tool(
+    tool: AnalysisTool,
+    binary_path: Option<String>,
+) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let binary = resolve_analysis_binary(tool, binary_path);
+        let output = process_command(&binary).arg("--version").output();
+        Ok(output
+            .map(|output| output.status.success())
+            .unwrap_or(false))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn run_analysis_tool(
+    tool: AnalysisTool,
+    binary_path: Option<String>,
+    prompt: String,
+) -> Result<AnalysisToolOutput, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let binary = resolve_analysis_binary(tool, binary_path);
+        let output = process_command(&binary)
+            .args(analysis_args(tool, prompt))
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        Ok(AnalysisToolOutput {
+            code: output.status.code(),
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -106,6 +241,8 @@ pub fn run() {
             reindex_all,
             search_index_count,
             get_storage_usage,
+            check_analysis_tool,
+            run_analysis_tool,
             backup::create_snapshot,
             backup::list_snapshots,
             backup::export_snapshot,

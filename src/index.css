@@ -1772,6 +1772,36 @@ mark.search-highlight.active {
 
 .settings-select:focus { border-color: var(--accent); }
 
+.settings-input {
+  width: 100%;
+  min-width: 0;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: inherit;
+  outline: none;
+}
+
+.settings-input:focus { border-color: var(--accent); }
+
+.settings-path-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-path-input {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+
+.settings-browse-btn {
+  flex: none;
+}
+
 .settings-number {
   width: 60px;
   background: var(--bg-base);
