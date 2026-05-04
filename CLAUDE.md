@@ -48,7 +48,7 @@ Files are copied into app data dir on attach, with relative paths (`attachments/
 Zip contains `mnemo.db` + `attachments/` directory. Before creating, a WAL checkpoint is flushed via rusqlite. Before restoring, a safety snapshot is auto-created. Restore extracts to a temp dir first, then swaps atomically. Tantivy index is cleared on restore and rebuilt on next launch.
 
 ### AI Analysis
-Uses a configured Claude Code or Codex CLI binary. Claude runs as `claude -p ... --output-format json`; Codex runs through `codex exec` in read-only, non-interactive mode. Tool availability is checked with `--version`. Has 60s timeout. `ToolNotFoundError` is propagated to UI as a modal. Analysis is optional and runs post-import.
+Uses a configured Claude Code or Codex CLI binary. Claude runs in non-interactive mode with tools, slash commands, Chrome integration, session persistence, and external MCP config disabled while preserving normal user auth. Codex runs through `codex exec` in read-only, ephemeral mode with user config and rules ignored. Tool availability is checked with `--version`. Has 60s timeout. `ToolNotFoundError` is propagated to UI as a modal. Analysis is optional and runs post-import.
 
 ### Duplicate Detection
 On import, compares first 800 normalized chars of content against existing chats with same source. If match found, prompts user to update existing or create new.

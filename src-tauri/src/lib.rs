@@ -160,6 +160,16 @@ fn path_env_for_binary(binary: &str) -> Option<std::ffi::OsString> {
 fn analysis_args(tool: AnalysisTool, prompt: String) -> Vec<String> {
     match tool {
         AnalysisTool::ClaudeCode => vec![
+            "--no-chrome".to_string(),
+            "--setting-sources".to_string(),
+            "user".to_string(),
+            "--strict-mcp-config".to_string(),
+            "--mcp-config".to_string(),
+            r#"{"mcpServers":{}}"#.to_string(),
+            "--tools".to_string(),
+            "".to_string(),
+            "--disable-slash-commands".to_string(),
+            "--no-session-persistence".to_string(),
             "-p".to_string(),
             prompt,
             "--output-format".to_string(),
@@ -175,6 +185,8 @@ fn analysis_args(tool: AnalysisTool, prompt: String) -> Vec<String> {
             "--color".to_string(),
             "never".to_string(),
             "--ephemeral".to_string(),
+            "--ignore-user-config".to_string(),
+            "--ignore-rules".to_string(),
             prompt,
         ],
     }
