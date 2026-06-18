@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "mnemo",
+  "productName": "Mnemo",
   "version": "0.1.0",
   "identifier": "studio.illegal.mnemo",
   "build": {
