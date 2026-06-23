@@ -92,7 +92,11 @@ jobs:
             gh release create "$TAG" --title "Mnemo $TAG" --generate-notes "$DMG"
           fi
 
+      # Skip while the repo is private: a private repo's release assets are not
+      # publicly downloadable, so a published cask would point at a 404. This
+      # re-enables itself automatically once the repo is made public.
       - name: Publish Homebrew cask
+        if: ${{ !github.event.repository.private }}
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           TAG: ${{ steps.version.outputs.tag }}
