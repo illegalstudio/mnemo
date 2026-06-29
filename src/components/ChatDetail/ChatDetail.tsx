@@ -7,6 +7,9 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { rehypeSourcePositions } from "../../lib/highlight";
+import MarkdownToolbar from "./MarkdownToolbar";
+import { applyHighlight, removeHighlight, recolorHighlight, newHighlightId, type HighlightColor } from "../../lib/highlight";
+import { computeSourceRanges } from "../../lib/highlight-dom";
 import { extractHeadings } from "../../lib/parser";
 import { jsxToHtml } from "../../lib/jsx-preview";
 import { resolveAttachmentPath } from "../../lib/attachments";
@@ -192,6 +195,8 @@ export default function ChatDetail({
   const contentRef = useRef<HTMLDivElement>(null);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const tocDragging = useRef(false);
+  const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
+  const [hlNotice, setHlNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setEditingTitle(false);
@@ -201,6 +206,7 @@ export default function ChatDetail({
     setShowTagDropdown(false);
     setShowChatSearch(false);
     setChatSearchTerm("");
+    setActiveHighlightId(null);
   }, [chat.id]);
 
   // Sync local state when chat data changes externally (e.g. after analysis)
@@ -310,6 +316,32 @@ export default function ChatDetail({
   const handleTitleSave = useCallback(() => { onUpdateChat(chat.id, { title: titleValue }); setEditingTitle(false); }, [chat.id, titleValue, onUpdateChat]);
   const handleSummarySave = useCallback(() => { onUpdateChat(chat.id, { summary: summaryValue }); }, [chat.id, summaryValue, onUpdateChat]);
 
+  const handleMarkClick = useCallback((id: string) => setActiveHighlightId(id), []);
+
+  const handleHighlightColor = useCallback((color: HighlightColor) => {
+    if (activeHighlightId) {
+      onUpdateChat(chat.id, { content_md: recolorHighlight(chat.content_md, activeHighlightId, color) });
+      setActiveHighlightId(null);
+      return;
+    }
+    const container = contentRef.current;
+    if (!container) return;
+    const ranges = computeSourceRanges(container);
+    if (!ranges) {
+      setHlNotice("Can't highlight this selection");
+      window.setTimeout(() => setHlNotice(null), 2500);
+      return;
+    }
+    onUpdateChat(chat.id, { content_md: applyHighlight(chat.content_md, ranges, color, newHighlightId()) });
+    window.getSelection()?.removeAllRanges();
+  }, [activeHighlightId, chat.id, chat.content_md, onUpdateChat]);
+
+  const handleRemoveHighlight = useCallback(() => {
+    if (!activeHighlightId) return;
+    onUpdateChat(chat.id, { content_md: removeHighlight(chat.content_md, activeHighlightId) });
+    setActiveHighlightId(null);
+  }, [activeHighlightId, chat.id, chat.content_md, onUpdateChat]);
+
   const handleAttachFile = useCallback(async () => {
     const selected = await open({ multiple: false, directory: false });
     if (selected) {
@@ -412,7 +444,13 @@ export default function ChatDetail({
         </button>
         <div className="focus-content">
           <div ref={contentRef} className="md-content">
-            <MemoizedMarkdown content={chat.content_md} contentRef={contentRef} />
+            <MarkdownToolbar
+              activeHighlightId={activeHighlightId}
+              notice={hlNotice}
+              onColor={handleHighlightColor}
+              onRemove={handleRemoveHighlight}
+            />
+            <MemoizedMarkdown content={chat.content_md} contentRef={contentRef} onMarkClick={handleMarkClick} />
           </div>
         </div>
       </div>
@@ -691,6 +729,12 @@ export default function ChatDetail({
             </>
           )}
           <div ref={contentRef} className="md-content detail-content-main">
+            <MarkdownToolbar
+              activeHighlightId={activeHighlightId}
+              notice={hlNotice}
+              onColor={handleHighlightColor}
+              onRemove={handleRemoveHighlight}
+            />
             {isResizing || tocResizing ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8, color: "var(--text-faint)" }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -699,7 +743,7 @@ export default function ChatDetail({
                 <span style={{ fontSize: 12 }}>Adjusting layout...</span>
               </div>
             ) : (
-              <MemoizedMarkdown content={chat.content_md} contentRef={contentRef} />
+              <MemoizedMarkdown content={chat.content_md} contentRef={contentRef} onMarkClick={handleMarkClick} />
             )}
           </div>
         </div>

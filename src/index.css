@@ -1630,6 +1630,51 @@ mark.search-highlight.active {
 .md-content mark.hl-pink { background: #fbcfe8; }
 .md-content mark.hl-blue { background: #bfdbfe; }
 
+.md-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 8px;
+  margin-bottom: 8px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.md-toolbar-label {
+  display: inline-flex;
+  color: var(--text-faint);
+}
+.md-toolbar-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  padding: 0;
+}
+.md-toolbar-swatch:hover {
+  outline: 2px solid var(--border-subtle);
+  outline-offset: 1px;
+}
+.md-toolbar-remove {
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+}
+.md-toolbar-remove:hover {
+  color: var(--red);
+}
+.md-toolbar-notice {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
 /* ---- SETTINGS MODAL ---- */
 .settings-panel {
   flex: 1;
