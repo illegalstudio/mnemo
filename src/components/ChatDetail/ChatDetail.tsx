@@ -6,9 +6,8 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { rehypeSourcePositions } from "../../lib/highlight";
+import { rehypeSourcePositions, applyHighlight, removeHighlight, recolorHighlight, newHighlightId, type HighlightColor } from "../../lib/highlight";
 import MarkdownToolbar from "./MarkdownToolbar";
-import { applyHighlight, removeHighlight, recolorHighlight, newHighlightId, type HighlightColor } from "../../lib/highlight";
 import { computeSourceRanges } from "../../lib/highlight-dom";
 import { extractHeadings } from "../../lib/parser";
 import { jsxToHtml } from "../../lib/jsx-preview";
@@ -193,6 +192,7 @@ export default function ChatDetail({
   const chatSearchRef = useRef<HTMLInputElement>(null);
   const [tocResizing, setTocResizing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const hlNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const tocDragging = useRef(false);
   const [activeHighlightId, setActiveHighlightId] = useState<string | null>(null);
@@ -207,6 +207,8 @@ export default function ChatDetail({
     setShowChatSearch(false);
     setChatSearchTerm("");
     setActiveHighlightId(null);
+    setHlNotice(null);
+    if (hlNoticeTimer.current) { clearTimeout(hlNoticeTimer.current); hlNoticeTimer.current = null; }
   }, [chat.id]);
 
   // Sync local state when chat data changes externally (e.g. after analysis)
@@ -328,8 +330,9 @@ export default function ChatDetail({
     if (!container) return;
     const ranges = computeSourceRanges(container);
     if (!ranges) {
+      if (hlNoticeTimer.current) clearTimeout(hlNoticeTimer.current);
       setHlNotice("Can't highlight this selection");
-      window.setTimeout(() => setHlNotice(null), 2500);
+      hlNoticeTimer.current = setTimeout(() => setHlNotice(null), 2500);
       return;
     }
     onUpdateChat(chat.id, { content_md: applyHighlight(chat.content_md, ranges, color, newHighlightId()) });
