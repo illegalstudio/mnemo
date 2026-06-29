@@ -103,3 +103,55 @@ function setMarkColor(openTag: string, color: HighlightColor): string {
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+// --- Minimal hast types (avoids a dependency on @types/hast) ---
+interface HastText {
+  type: "text";
+  value: string;
+  position?: { start?: { offset?: number }; end?: { offset?: number } };
+}
+interface HastElement {
+  type: "element";
+  tagName: string;
+  properties?: Record<string, unknown>;
+  children: HastChild[];
+}
+interface HastRoot {
+  type: "root";
+  children: HastChild[];
+}
+type HastChild = HastText | HastElement | { type: string; children?: HastChild[] };
+
+const SKIP_TAGS = new Set(["code", "pre"]);
+
+export function rehypeSourcePositions() {
+  return (tree: HastRoot) => walkHast(tree, false);
+}
+
+function walkHast(node: HastRoot | HastElement, inSkip: boolean): void {
+  const children = node.children;
+  if (!children) return;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (child.type === "element") {
+      const el = child as HastElement;
+      walkHast(el, inSkip || SKIP_TAGS.has(el.tagName));
+    } else if (child.type === "text" && !inSkip) {
+      const text = child as HastText;
+      const start = text.position?.start?.offset;
+      const end = text.position?.end?.offset;
+      if (start == null || end == null) continue;
+      const span: HastElement = {
+        type: "element",
+        tagName: "span",
+        properties: {
+          className: ["md-pos"],
+          "data-md-start": String(start),
+          "data-md-end": String(end),
+        },
+        children: [text],
+      };
+      children[i] = span;
+    }
+  }
+}
