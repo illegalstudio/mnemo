@@ -1,6 +1,7 @@
 import Database from "@tauri-apps/plugin-sql";
 import { invoke } from "@tauri-apps/api/core";
 import { v4 as uuidv4 } from "uuid";
+import { stripHighlights } from "./highlight";
 import type {
   Chat,
   Tag,
@@ -176,7 +177,7 @@ export async function initSearch(): Promise<void> {
         id: c.id,
         title: c.title,
         summary: c.summary,
-        contentMd: c.content_md,
+        contentMd: stripHighlights(c.content_md),
       })),
     });
     console.log("[search] Reindex complete");
@@ -194,7 +195,7 @@ export async function rebuildSearchIndex(): Promise<void> {
       id: c.id,
       title: c.title,
       summary: c.summary,
-      contentMd: c.content_md,
+      contentMd: stripHighlights(c.content_md),
     })),
   });
   console.log("[search] Rebuild complete");
@@ -359,9 +360,8 @@ export async function insertChat(chat: Omit<Chat, "id">): Promise<Chat> {
     id,
     title: chat.title,
     summary: chat.summary ?? "",
-    contentMd: chat.content_md,
-  }
-  );
+    contentMd: stripHighlights(chat.content_md),
+  });
 
   return { id, ...chat };
 }
@@ -385,7 +385,7 @@ export async function updateChat(id: string, updates: Partial<Chat>): Promise<vo
         id,
         title: chat[0].title,
         summary: chat[0].summary ?? "",
-        contentMd: chat[0].content_md,
+        contentMd: stripHighlights(chat[0].content_md),
       });
     }
   }
@@ -420,7 +420,7 @@ export async function restoreChat(id: string): Promise<void> {
       id,
       title: chat[0].title,
       summary: chat[0].summary ?? "",
-      contentMd: chat[0].content_md,
+      contentMd: stripHighlights(chat[0].content_md),
     });
   }
 }
