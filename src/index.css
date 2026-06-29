@@ -1626,9 +1626,6 @@ mark.search-highlight.active {
   color: #1a1d23;
 }
 .md-content mark.hl-yellow { background: #fde68a; }
-.md-content mark.hl-green { background: #bbf7d0; }
-.md-content mark.hl-pink { background: #fbcfe8; }
-.md-content mark.hl-blue { background: #bfdbfe; }
 
 .md-toolbar {
   position: sticky;
@@ -1660,25 +1657,24 @@ mark.search-highlight.active {
   margin: -48px 0 16px;
   padding: 16px 0 12px;
 }
-.md-toolbar-label {
+.md-toolbar-btn {
   display: inline-flex;
-  color: var(--text-faint);
-}
-.md-toolbar-swatch {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
+  align-items: center;
+  background: none;
   border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-muted);
   cursor: pointer;
-  padding: 0;
+  padding: 4px 7px;
 }
-.md-toolbar-swatch:hover {
-  outline: 2px solid var(--border-subtle);
-  outline-offset: 1px;
+.md-toolbar-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-faint);
 }
-.md-toolbar-swatch.armed {
-  outline: 2px solid var(--text-primary);
-  outline-offset: 2px;
+.md-toolbar-btn.armed {
+  background: #fde68a;
+  border-color: #fde68a;
+  color: #1a1d23;
 }
 .md-toolbar-status {
   font-size: 12px;
@@ -1689,10 +1685,15 @@ mark.search-highlight.active {
   font-size: 12px;
   color: var(--red);
 }
-/* While the highlighter is armed, show a marker cursor over the content */
+/* Default: arrow cursor over the rendered markdown (not the text I-beam). */
+.md-content {
+  cursor: default;
+}
+/* When the highlighter is on, show the text-select cursor so it reads as
+   "now you can select to highlight". */
 .md-content.hl-armed,
 .md-content.hl-armed * {
-  cursor: crosshair;
+  cursor: text;
 }
 
 /* ---- SETTINGS MODAL ---- */

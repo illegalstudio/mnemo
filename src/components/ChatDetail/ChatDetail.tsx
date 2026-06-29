@@ -6,7 +6,7 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { rehypeSourcePositions, applyHighlight, removeHighlight, newHighlightId, stripHighlights, type HighlightColor } from "../../lib/highlight";
+import { rehypeSourcePositions, applyHighlight, removeHighlight, newHighlightId, stripHighlights } from "../../lib/highlight";
 import MarkdownToolbar from "./MarkdownToolbar";
 import { computeSourceRanges } from "../../lib/highlight-dom";
 import { extractHeadings } from "../../lib/parser";
@@ -196,7 +196,7 @@ export default function ChatDetail({
   const hlNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const tocDragging = useRef(false);
-  const [armedColor, setArmedColor] = useState<HighlightColor | null>(null);
+  const [armed, setArmed] = useState(false);
   const [hlNotice, setHlNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -207,7 +207,7 @@ export default function ChatDetail({
     setShowTagDropdown(false);
     setShowChatSearch(false);
     setChatSearchTerm("");
-    setArmedColor(null);
+    setArmed(false);
     setHlNotice(null);
     if (hlNoticeTimer.current) { clearTimeout(hlNoticeTimer.current); hlNoticeTimer.current = null; }
   }, [chat.id]);
@@ -319,9 +319,9 @@ export default function ChatDetail({
   const handleTitleSave = useCallback(() => { onUpdateChat(chat.id, { title: titleValue }); setEditingTitle(false); }, [chat.id, titleValue, onUpdateChat]);
   const handleSummarySave = useCallback(() => { onUpdateChat(chat.id, { summary: summaryValue }); }, [chat.id, summaryValue, onUpdateChat]);
 
-  // Toggle the armed highlighter color (like picking up / putting down a marker).
-  const handleArm = useCallback((color: HighlightColor) => {
-    setArmedColor((prev) => (prev === color ? null : color));
+  // Toggle the highlighter on/off (like picking up / putting down a marker).
+  const handleToggleHighlighter = useCallback(() => {
+    setArmed((prev) => !prev);
   }, []);
 
   // Clicking an existing highlight erases it.
@@ -329,10 +329,10 @@ export default function ChatDetail({
     onUpdateChat(chat.id, { content_md: removeHighlight(chat.content_md, id) });
   }, [chat.id, chat.content_md, onUpdateChat]);
 
-  // Armed-highlighter: while a color is armed, finishing a drag-selection in the
-  // content applies the highlight — no need to click a button afterwards.
+  // Armed-highlighter: while the marker is on, finishing a drag-selection in the
+  // content applies a yellow highlight — no need to click a button afterwards.
   useEffect(() => {
-    if (!armedColor) return;
+    if (!armed) return;
     const container = contentRef.current;
     if (!container) return;
     const onMouseUp = () => {
@@ -345,20 +345,20 @@ export default function ChatDetail({
         hlNoticeTimer.current = setTimeout(() => setHlNotice(null), 2000);
         return;
       }
-      onUpdateChat(chat.id, { content_md: applyHighlight(chat.content_md, ranges, armedColor, newHighlightId()) });
+      onUpdateChat(chat.id, { content_md: applyHighlight(chat.content_md, ranges, "yellow", newHighlightId()) });
       window.getSelection()?.removeAllRanges();
     };
     container.addEventListener("mouseup", onMouseUp);
     return () => container.removeEventListener("mouseup", onMouseUp);
-  }, [armedColor, chat.id, chat.content_md, onUpdateChat, focusMode]);
+  }, [armed, chat.id, chat.content_md, onUpdateChat, focusMode]);
 
-  // Esc disarms the highlighter.
+  // Esc turns the highlighter off.
   useEffect(() => {
-    if (!armedColor) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setArmedColor(null); };
+    if (!armed) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setArmed(false); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [armedColor]);
+  }, [armed]);
 
   const handleAttachFile = useCallback(async () => {
     const selected = await open({ multiple: false, directory: false });
@@ -461,11 +461,11 @@ export default function ChatDetail({
           </svg>
         </button>
         <div className="focus-content">
-          <div ref={contentRef} className={`md-content${armedColor ? " hl-armed" : ""}`}>
+          <div ref={contentRef} className={`md-content${armed ? " hl-armed" : ""}`}>
             <MarkdownToolbar
-              armed={armedColor}
+              armed={armed}
               notice={hlNotice}
-              onArm={handleArm}
+              onToggle={handleToggleHighlighter}
             />
             <MemoizedMarkdown content={chat.content_md} contentRef={contentRef} onMarkClick={handleMarkRemove} />
           </div>
@@ -745,11 +745,11 @@ export default function ChatDetail({
               }} />
             </>
           )}
-          <div ref={contentRef} className={`md-content detail-content-main${armedColor ? " hl-armed" : ""}`}>
+          <div ref={contentRef} className={`md-content detail-content-main${armed ? " hl-armed" : ""}`}>
             <MarkdownToolbar
-              armed={armedColor}
+              armed={armed}
               notice={hlNotice}
-              onArm={handleArm}
+              onToggle={handleToggleHighlighter}
             />
             {isResizing || tocResizing ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8, color: "var(--text-faint)" }}>

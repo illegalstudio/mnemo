@@ -1,39 +1,24 @@
-import { HIGHLIGHT_COLORS, type HighlightColor } from "../../lib/highlight";
-
 interface MarkdownToolbarProps {
-  armed: HighlightColor | null;
+  armed: boolean;
   notice: string | null;
-  onArm: (color: HighlightColor) => void;
+  onToggle: () => void;
 }
 
-const COLOR_SWATCH: Record<HighlightColor, string> = {
-  yellow: "#fde68a",
-  green: "#bbf7d0",
-  pink: "#fbcfe8",
-  blue: "#bfdbfe",
-};
-
-export default function MarkdownToolbar({ armed, notice, onArm }: MarkdownToolbarProps) {
+export default function MarkdownToolbar({ armed, notice, onToggle }: MarkdownToolbarProps) {
   return (
     <div className="md-toolbar">
-      <span
-        className="md-toolbar-label"
-        title="Pick a color, then drag over text to highlight. Esc to stop. Click a highlight to remove it."
+      <button
+        type="button"
+        className={`md-toolbar-btn${armed ? " armed" : ""}`}
+        title={armed ? "Highlighter on — drag over text to highlight (Esc to stop)" : "Highlighter — click, then drag over the text"}
+        aria-pressed={armed}
+        onClick={onToggle}
       >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m9 11-6 6v3h9l3-3" />
+          <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
         </svg>
-      </span>
-      {HIGHLIGHT_COLORS.map((c) => (
-        <button
-          key={c}
-          className={`md-toolbar-swatch${armed === c ? " armed" : ""}`}
-          style={{ background: COLOR_SWATCH[c] }}
-          title={armed === c ? `Stop highlighting (${c})` : `Highlight with ${c}`}
-          aria-pressed={armed === c}
-          onClick={() => onArm(c)}
-        />
-      ))}
+      </button>
       {armed && <span className="md-toolbar-status">Drag to highlight · Esc to stop</span>}
       {notice && <span className="md-toolbar-notice">{notice}</span>}
     </div>
