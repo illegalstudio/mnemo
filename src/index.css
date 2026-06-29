@@ -1612,6 +1612,24 @@ mark.search-highlight.active {
   outline-offset: 1px;
 }
 
+/* Source-offset wrappers: inert, no visual change */
+.md-content span.md-pos {
+  /* nothing — purely a position carrier */
+}
+
+/* User highlights (persisted in content_md) */
+.md-content mark[class^="hl-"],
+.md-content mark[class*=" hl-"] {
+  border-radius: 2px;
+  padding: 0 1px;
+  cursor: pointer;
+  color: #1a1d23;
+}
+.md-content mark.hl-yellow { background: #fde68a; }
+.md-content mark.hl-green { background: #bbf7d0; }
+.md-content mark.hl-pink { background: #fbcfe8; }
+.md-content mark.hl-blue { background: #bfdbfe; }
+
 /* ---- SETTINGS MODAL ---- */
 .settings-panel {
   flex: 1;

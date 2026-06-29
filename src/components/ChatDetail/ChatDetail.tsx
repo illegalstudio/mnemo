@@ -6,6 +6,7 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import { rehypeSourcePositions } from "../../lib/highlight";
 import { extractHeadings } from "../../lib/parser";
 import { jsxToHtml } from "../../lib/jsx-preview";
 import { resolveAttachmentPath } from "../../lib/attachments";
@@ -74,11 +75,11 @@ function CollapsibleH1({ children, id }: { children: React.ReactNode; id: string
   );
 }
 
-const MemoizedMarkdown = memo(function MemoizedMarkdown({ content, contentRef }: { content: string; contentRef: React.RefObject<HTMLDivElement | null> }) {
+const MemoizedMarkdown = memo(function MemoizedMarkdown({ content, contentRef, onMarkClick }: { content: string; contentRef: React.RefObject<HTMLDivElement | null>; onMarkClick?: (id: string) => void }) {
   return (
     <Markdown
       remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeRaw]}
+      rehypePlugins={[rehypeRaw, rehypeSourcePositions]}
       components={{
         h1: ({ children }) => <CollapsibleH1 id={slugify(getTextContent(children))}>{children}</CollapsibleH1>,
         h2: ({ children, ...props }) => <h2 id={slugify(getTextContent(children))} {...props}>{children}</h2>,
@@ -93,6 +94,12 @@ const MemoizedMarkdown = memo(function MemoizedMarkdown({ content, contentRef }:
           }
           return <a {...props} href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
         },
+        mark: ({ children, ...props }) => (
+          <mark {...props} onClick={(e) => {
+            const id = (e.currentTarget as HTMLElement).dataset.hl;
+            if (id) onMarkClick?.(id);
+          }}>{children}</mark>
+        ),
         code: ({ className, children, ...props }) => {
           const match = /language-(\w+)/.exec(className || "");
           if (match && match[1] === "mermaid") {
@@ -101,7 +108,6 @@ const MemoizedMarkdown = memo(function MemoizedMarkdown({ content, contentRef }:
           return <code className={className} {...props}>{children}</code>;
         },
         pre: ({ children, ...props }) => {
-          // Check if the child is a mermaid code block — if so, render without <pre> wrapper
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const child = children as any;
           if (child?.props?.className?.includes("language-mermaid")) {
