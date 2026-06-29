@@ -6,7 +6,7 @@ import { readTextFile } from "@tauri-apps/plugin-fs";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { rehypeSourcePositions, applyHighlight, removeHighlight, recolorHighlight, newHighlightId, type HighlightColor } from "../../lib/highlight";
+import { rehypeSourcePositions, applyHighlight, removeHighlight, recolorHighlight, newHighlightId, stripHighlights, type HighlightColor } from "../../lib/highlight";
 import MarkdownToolbar from "./MarkdownToolbar";
 import { computeSourceRanges } from "../../lib/highlight-dom";
 import { extractHeadings } from "../../lib/parser";
@@ -110,6 +110,7 @@ const MemoizedMarkdown = memo(function MemoizedMarkdown({ content, contentRef, o
           return <code className={className} {...props}>{children}</code>;
         },
         pre: ({ children, ...props }) => {
+          // Check if the child is a mermaid code block — if so, render without <pre> wrapper
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const child = children as any;
           if (child?.props?.className?.includes("language-mermaid")) {
@@ -290,7 +291,7 @@ export default function ChatDetail({
 
   const chatSearchMatchCount = useMemo(() => {
     if (!chatSearchTerm || chatSearchTerm.length < 2) return 0;
-    const text = chat.content_md.toLowerCase();
+    const text = stripHighlights(chat.content_md).toLowerCase();
     const term = chatSearchTerm.toLowerCase();
     let count = 0;
     let idx = text.indexOf(term);

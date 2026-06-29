@@ -82,3 +82,13 @@ test("stripHighlights removes mark tags, keeps text", () => {
 test("HIGHLIGHT_COLORS lists the four colors", () => {
   expect(HIGHLIGHT_COLORS).toEqual(["yellow", "green", "pink", "blue"]);
 });
+
+test("removeHighlight removes the inner of two nested marks, keeping the outer", () => {
+  const md = '<mark class="hl-yellow" data-hl="outer">a <mark class="hl-blue" data-hl="inner">b</mark> c</mark>';
+  expect(removeHighlight(md, "inner")).toBe('<mark class="hl-yellow" data-hl="outer">a b c</mark>');
+});
+
+test("removeHighlight removes one of two sibling marks sharing an id, leaving the other text intact", () => {
+  const md = '<mark class="hl-green" data-hl="dup">a</mark> mid <mark class="hl-green" data-hl="other">b</mark>';
+  expect(removeHighlight(md, "dup")).toBe('a mid <mark class="hl-green" data-hl="other">b</mark>');
+});
