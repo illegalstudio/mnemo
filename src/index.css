@@ -1632,15 +1632,33 @@ mark.search-highlight.active {
 
 .md-toolbar {
   position: sticky;
+  /* Narrow mode: the scroller is .detail-content-area (no top padding), so top: 0
+     sits flush. The negative margins cancel .detail-content-main's padding so the
+     bar spans full width and starts at the column's top edge. */
   top: 0;
   z-index: 5;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 0 8px;
-  margin-bottom: 8px;
+  margin: -20px -20px 12px;
+  padding: 12px 20px 10px;
   background: var(--bg-base);
   border-bottom: 1px solid var(--border-subtle);
+}
+/* Wide mode: the scroller becomes .detail-content-main itself (padding-top: 20px),
+   and sticky top: 0 would clamp the bar below that padding. A negative top cancels
+   it so the bar stays flush against the very top edge. */
+@container detail-panel (min-width: 600px) {
+  .md-toolbar {
+    top: -20px;
+  }
+}
+/* Focus mode scrolls inside .focus-content (padding: 48px 24px); cancel its top
+   padding for both the resting position (margin) and the stuck position (top). */
+.focus-content .md-toolbar {
+  top: -48px;
+  margin: -48px 0 16px;
+  padding: 16px 0 12px;
 }
 .md-toolbar-label {
   display: inline-flex;
@@ -1658,21 +1676,23 @@ mark.search-highlight.active {
   outline: 2px solid var(--border-subtle);
   outline-offset: 1px;
 }
-.md-toolbar-remove {
-  display: inline-flex;
-  align-items: center;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px;
+.md-toolbar-swatch.armed {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
 }
-.md-toolbar-remove:hover {
-  color: var(--red);
+.md-toolbar-status {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
 }
 .md-toolbar-notice {
   font-size: 12px;
-  color: var(--text-faint);
+  color: var(--red);
+}
+/* While the highlighter is armed, show a marker cursor over the content */
+.md-content.hl-armed,
+.md-content.hl-armed * {
+  cursor: crosshair;
 }
 
 /* ---- SETTINGS MODAL ---- */
