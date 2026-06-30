@@ -30,7 +30,7 @@ export function computeSourceRanges(container: HTMLElement): SourceRange[] | nul
   const spans = container.querySelectorAll<HTMLElement>("span.md-pos");
   const ranges: SourceRange[] = [];
   spans.forEach((span) => {
-    if (!nodeInSelection(sel, range, span)) return;
+    if (!nodeInSelection(range, span)) return;
     const mdStart = Number(span.dataset.mdStart);
     const mdEnd = Number(span.dataset.mdEnd);
     if (Number.isNaN(mdStart) || Number.isNaN(mdEnd)) return;
@@ -50,16 +50,10 @@ export function computeSourceRanges(container: HTMLElement): SourceRange[] | nul
   return ranges.length ? ranges : null;
 }
 
-// Whether `node` is at least partially within the selection. Selection.containsNode
-// is the most reliable in WebKit/WKWebView; fall back to Range boundary geometry.
-function nodeInSelection(sel: Selection, range: Range, node: Node): boolean {
-  if (typeof sel.containsNode === "function") {
-    try {
-      return sel.containsNode(node, true);
-    } catch {
-      /* fall through to geometry */
-    }
-  }
+// Whether `node` overlaps the selection range. Uses deterministic Range boundary
+// geometry — Selection.containsNode is unreliable in WebKit/WKWebView (notably it
+// can report false for spans inside list items).
+function nodeInSelection(range: Range, node: Node): boolean {
   const nodeRange = document.createRange();
   nodeRange.selectNodeContents(node);
   // Overlap iff range.start <= node.end AND range.end >= node.start.
