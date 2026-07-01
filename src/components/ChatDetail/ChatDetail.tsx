@@ -7,7 +7,9 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { rehypeSourcePositions, applyHighlight, removeHighlight, newHighlightId, stripHighlights } from "../../lib/highlight";
-import MarkdownToolbar from "./MarkdownToolbar";
+import { deleteAbove, deleteBelow } from "../../lib/cut";
+import MarkdownToolbar, { type ToolMode } from "./MarkdownToolbar";
+import CutOverlay from "./CutOverlay";
 import { computeSourceRanges } from "../../lib/highlight-dom";
 import { extractHeadings } from "../../lib/parser";
 import { jsxToHtml } from "../../lib/jsx-preview";
@@ -142,6 +144,8 @@ interface ChatDetailProps {
   isResizing?: boolean;
   focusMode?: boolean;
   onToggleFocus?: () => void;
+  onSplitChat: (chatId: string, offset: number) => Promise<Chat | null>;
+  onOpenChat: (chatId: string) => void;
 }
 
 function getTextContent(node: React.ReactNode): string {
@@ -173,7 +177,7 @@ const sourceLabels: Record<string, string> = { claude: "Claude", perplexity: "Pe
 
 export default function ChatDetail({
   chat, tags, allTags, attachments, onUpdateChat, onClose,
-  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, onRegenerateField, onReparseHtml, isResizing, focusMode, onToggleFocus,
+  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, onRegenerateField, onReparseHtml, isResizing, focusMode, onToggleFocus, onSplitChat, onOpenChat,
 }: ChatDetailProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(chat.title);
@@ -196,8 +200,13 @@ export default function ChatDetail({
   const hlNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tagDropdownRef = useRef<HTMLDivElement>(null);
   const tocDragging = useRef(false);
-  const [armed, setArmed] = useState(false);
+  const [tool, setTool] = useState<ToolMode>("none");
   const [hlNotice, setHlNotice] = useState<string | null>(null);
+  const [cutConfirm, setCutConfirm] = useState<{ direction: "above" | "below"; offset: number } | null>(null);
+  const [cutUndo, setCutUndo] = useState<string | null>(null); // previous content_md
+  const [splitToast, setSplitToast] = useState<string | null>(null); // new chat id
+  const cutUndoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const splitToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setEditingTitle(false);
@@ -207,9 +216,14 @@ export default function ChatDetail({
     setShowTagDropdown(false);
     setShowChatSearch(false);
     setChatSearchTerm("");
-    setArmed(false);
+    setTool("none");
     setHlNotice(null);
     if (hlNoticeTimer.current) { clearTimeout(hlNoticeTimer.current); hlNoticeTimer.current = null; }
+    setCutConfirm(null);
+    setCutUndo(null);
+    setSplitToast(null);
+    if (cutUndoTimer.current) { clearTimeout(cutUndoTimer.current); cutUndoTimer.current = null; }
+    if (splitToastTimer.current) { clearTimeout(splitToastTimer.current); splitToastTimer.current = null; }
   }, [chat.id]);
 
   // Sync local state when chat data changes externally (e.g. after analysis)
@@ -319,10 +333,43 @@ export default function ChatDetail({
   const handleTitleSave = useCallback(() => { onUpdateChat(chat.id, { title: titleValue }); setEditingTitle(false); }, [chat.id, titleValue, onUpdateChat]);
   const handleSummarySave = useCallback(() => { onUpdateChat(chat.id, { summary: summaryValue }); }, [chat.id, summaryValue, onUpdateChat]);
 
-  // Toggle the highlighter on/off (like picking up / putting down a marker).
-  const handleToggleHighlighter = useCallback(() => {
-    setArmed((prev) => !prev);
+  const handleToggleHighlight = useCallback(() => {
+    setTool((t) => (t === "highlight" ? "none" : "highlight"));
   }, []);
+  const handleToggleCut = useCallback(() => {
+    setTool((t) => (t === "cut" ? "none" : "cut"));
+  }, []);
+
+  const performDelete = useCallback((direction: "above" | "below", offset: number) => {
+    const prev = chat.content_md;
+    const next = direction === "above" ? deleteAbove(prev, offset) : deleteBelow(prev, offset);
+    onUpdateChat(chat.id, { content_md: next });
+    setCutUndo(prev);
+    if (cutUndoTimer.current) clearTimeout(cutUndoTimer.current);
+    cutUndoTimer.current = setTimeout(() => setCutUndo(null), 6000);
+    // Clear any pending split toast so only one toast is live at a time.
+    setSplitToast(null);
+    if (splitToastTimer.current) { clearTimeout(splitToastTimer.current); splitToastTimer.current = null; }
+  }, [chat.id, chat.content_md, onUpdateChat]);
+
+  const handleCutUndo = useCallback(() => {
+    if (cutUndo == null) return;
+    onUpdateChat(chat.id, { content_md: cutUndo });
+    setCutUndo(null);
+    if (cutUndoTimer.current) { clearTimeout(cutUndoTimer.current); cutUndoTimer.current = null; }
+  }, [cutUndo, chat.id, onUpdateChat]);
+
+  const handleSplit = useCallback(async (offset: number) => {
+    const newChat = await onSplitChat(chat.id, offset);
+    if (newChat) {
+      setSplitToast(newChat.id);
+      if (splitToastTimer.current) clearTimeout(splitToastTimer.current);
+      splitToastTimer.current = setTimeout(() => setSplitToast(null), 8000);
+      // Clear any pending delete-undo toast so only one toast is live at a time.
+      setCutUndo(null);
+      if (cutUndoTimer.current) { clearTimeout(cutUndoTimer.current); cutUndoTimer.current = null; }
+    }
+  }, [chat.id, onSplitChat]);
 
   // Clicking an existing highlight erases it.
   const handleMarkRemove = useCallback((id: string) => {
@@ -332,7 +379,7 @@ export default function ChatDetail({
   // Armed-highlighter: while the marker is on, finishing a drag-selection in the
   // content applies a yellow highlight — no need to click a button afterwards.
   useEffect(() => {
-    if (!armed) return;
+    if (tool !== "highlight") return;
     const container = contentRef.current;
     if (!container) return;
     const onMouseUp = () => {
@@ -350,15 +397,14 @@ export default function ChatDetail({
     };
     container.addEventListener("mouseup", onMouseUp);
     return () => container.removeEventListener("mouseup", onMouseUp);
-  }, [armed, chat.id, chat.content_md, onUpdateChat, focusMode]);
+  }, [tool, chat.id, chat.content_md, onUpdateChat, focusMode]);
 
-  // Esc turns the highlighter off.
   useEffect(() => {
-    if (!armed) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setArmed(false); };
+    if (tool === "none") return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setTool("none"); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [armed]);
+  }, [tool]);
 
   const handleAttachFile = useCallback(async () => {
     const selected = await open({ multiple: false, directory: false });
@@ -452,6 +498,36 @@ export default function ChatDetail({
 
   const importDate = new Date(chat.imported_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
+  const cutModals = (
+    <>
+      {cutConfirm && (
+        <div className="expand-modal-overlay" onClick={() => setCutConfirm(null)}>
+          <div className="cut-confirm" onClick={(e) => e.stopPropagation()}>
+            <div className="cut-confirm-text">
+              Delete the part {cutConfirm.direction} this line?
+            </div>
+            <div className="cut-confirm-actions">
+              <button className="cut-confirm-cancel" onClick={() => setCutConfirm(null)}>Cancel</button>
+              <button className="cut-confirm-delete" onClick={() => { performDelete(cutConfirm.direction, cutConfirm.offset); setCutConfirm(null); }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {cutUndo != null && (
+        <div className="cut-toast">
+          <span>Content deleted</span>
+          <button onClick={handleCutUndo}>Undo</button>
+        </div>
+      )}
+      {splitToast && (
+        <div className="cut-toast">
+          <span>Note split</span>
+          <button onClick={() => { onOpenChat(splitToast); setSplitToast(null); }}>Open new note</button>
+        </div>
+      )}
+    </>
+  );
+
   if (focusMode) {
     return (
       <div className="focus-mode">
@@ -461,15 +537,26 @@ export default function ChatDetail({
           </svg>
         </button>
         <div className="focus-content">
-          <div ref={contentRef} className={`md-content${armed ? " hl-armed" : ""}`}>
+          <div ref={contentRef} className={`md-content${tool === "highlight" ? " hl-armed" : tool === "cut" ? " cut-armed" : ""}`}>
             <MarkdownToolbar
-              armed={armed}
+              tool={tool}
               notice={hlNotice}
-              onToggle={handleToggleHighlighter}
+              onToggleHighlight={handleToggleHighlight}
+              onToggleCut={handleToggleCut}
             />
+            {tool === "cut" && (
+              <CutOverlay
+                containerRef={contentRef}
+                contentMd={chat.content_md}
+                onDeleteAbove={(offset) => setCutConfirm({ direction: "above", offset })}
+                onDeleteBelow={(offset) => setCutConfirm({ direction: "below", offset })}
+                onSplit={(offset) => handleSplit(offset)}
+              />
+            )}
             <MemoizedMarkdown content={chat.content_md} contentRef={contentRef} onMarkClick={handleMarkRemove} />
           </div>
         </div>
+        {cutModals}
       </div>
     );
   }
@@ -745,12 +832,22 @@ export default function ChatDetail({
               }} />
             </>
           )}
-          <div ref={contentRef} className={`md-content detail-content-main${armed ? " hl-armed" : ""}`}>
+          <div ref={contentRef} className={`md-content detail-content-main${tool === "highlight" ? " hl-armed" : tool === "cut" ? " cut-armed" : ""}`}>
             <MarkdownToolbar
-              armed={armed}
+              tool={tool}
               notice={hlNotice}
-              onToggle={handleToggleHighlighter}
+              onToggleHighlight={handleToggleHighlight}
+              onToggleCut={handleToggleCut}
             />
+            {tool === "cut" && (
+              <CutOverlay
+                containerRef={contentRef}
+                contentMd={chat.content_md}
+                onDeleteAbove={(offset) => setCutConfirm({ direction: "above", offset })}
+                onDeleteBelow={(offset) => setCutConfirm({ direction: "below", offset })}
+                onSplit={(offset) => handleSplit(offset)}
+              />
+            )}
             {isResizing || tocResizing ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8, color: "var(--text-faint)" }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -804,6 +901,7 @@ export default function ChatDetail({
           </div>
         </div>
       )}
+      {cutModals}
     </div>
   );
 }

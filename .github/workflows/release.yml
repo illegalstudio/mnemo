@@ -134,10 +134,12 @@ jobs:
           cd "$TAP_DIR"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- Casks/mnemo.rb; then
+          git add Casks/mnemo.rb
+          # Stage first, then check the staged diff: a brand-new (untracked) cask
+          # file is invisible to `git diff` but shows up in `git diff --cached`.
+          if git diff --cached --quiet; then
             echo "Cask already up to date for ${VERSION}"
             exit 0
           fi
-          git add Casks/mnemo.rb
           git commit -m "mnemo ${TAG}"
           git push

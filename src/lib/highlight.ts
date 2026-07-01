@@ -115,6 +115,7 @@ interface HastElement {
   tagName: string;
   properties?: Record<string, unknown>;
   children: HastChild[];
+  position?: { start?: { offset?: number } };
 }
 interface HastRoot {
   type: "root";
@@ -123,6 +124,7 @@ interface HastRoot {
 type HastChild = HastText | HastElement | { type: string; children?: HastChild[] };
 
 const SKIP_TAGS = new Set(["code", "pre"]);
+const BLOCK_TAGS = new Set(["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "blockquote", "pre", "table", "hr"]);
 
 export function rehypeSourcePositions() {
   return (tree: HastRoot) => walkHast(tree, false);
@@ -135,6 +137,13 @@ function walkHast(node: HastRoot | HastElement, inSkip: boolean): void {
     const child = children[i];
     if (child.type === "element") {
       const el = child as HastElement;
+      if (BLOCK_TAGS.has(el.tagName)) {
+        const blockStart = el.position?.start?.offset;
+        if (blockStart != null) {
+          el.properties = el.properties ?? {};
+          el.properties["data-md-block-start"] = String(blockStart);
+        }
+      }
       walkHast(el, inSkip || SKIP_TAGS.has(el.tagName));
     } else if (child.type === "text" && !inSkip) {
       const text = child as HastText;
