@@ -21,6 +21,13 @@ export default function CutOverlay({ containerRef, contentMd, onDeleteAbove, onD
   }, [containerRef]);
 
   // Recompute boundaries when the tool opens, the content changes, or layout shifts.
+  // Note: the scroll listener on containerRef.current may be inert in layouts where the
+  // actual scroll container is an ancestor (e.g. wide/focus view). This is intentional and
+  // safe: both the boundary `y` values and the mouse `yInContent` are computed relative to
+  // containerRef.current's live getBoundingClientRect().top, and .cut-line is absolutely
+  // positioned inside that same container — so the values stay internally consistent even
+  // while the page is scrolled. Do NOT "fix" this by switching to a window scroll listener
+  // or subtracting scrollTop from lineY; doing so would break the wide-view case.
   useEffect(() => {
     recompute();
     const c = containerRef.current;

@@ -347,6 +347,9 @@ export default function ChatDetail({
     setCutUndo(prev);
     if (cutUndoTimer.current) clearTimeout(cutUndoTimer.current);
     cutUndoTimer.current = setTimeout(() => setCutUndo(null), 6000);
+    // Clear any pending split toast so only one toast is live at a time.
+    setSplitToast(null);
+    if (splitToastTimer.current) { clearTimeout(splitToastTimer.current); splitToastTimer.current = null; }
   }, [chat.id, chat.content_md, onUpdateChat]);
 
   const handleCutUndo = useCallback(() => {
@@ -362,6 +365,9 @@ export default function ChatDetail({
       setSplitToast(newChat.id);
       if (splitToastTimer.current) clearTimeout(splitToastTimer.current);
       splitToastTimer.current = setTimeout(() => setSplitToast(null), 8000);
+      // Clear any pending delete-undo toast so only one toast is live at a time.
+      setCutUndo(null);
+      if (cutUndoTimer.current) { clearTimeout(cutUndoTimer.current); cutUndoTimer.current = null; }
     }
   }, [chat.id, onSplitChat]);
 
