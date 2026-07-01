@@ -142,6 +142,8 @@ interface ChatDetailProps {
   isResizing?: boolean;
   focusMode?: boolean;
   onToggleFocus?: () => void;
+  onSplitChat: (chatId: string, offset: number) => Promise<Chat | null>;
+  onOpenChat: (chatId: string) => void;
 }
 
 function getTextContent(node: React.ReactNode): string {
@@ -173,7 +175,7 @@ const sourceLabels: Record<string, string> = { claude: "Claude", perplexity: "Pe
 
 export default function ChatDetail({
   chat, tags, allTags, attachments, onUpdateChat, onClose,
-  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, onRegenerateField, onReparseHtml, isResizing, focusMode, onToggleFocus,
+  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, onRegenerateField, onReparseHtml, isResizing, focusMode, onToggleFocus, onSplitChat: _onSplitChat, onOpenChat: _onOpenChat,
 }: ChatDetailProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(chat.title);

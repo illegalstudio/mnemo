@@ -3,6 +3,7 @@ import type { Chat, Tag, TagWithCount, FolderWithCount, Attachment, Source } fro
 import * as db from '../lib/db';
 import { parseImportFile } from '../lib/parser';
 import { generateMetadata, ToolNotFoundError } from '../lib/metadata';
+import { splitMarkdown, deriveSplitTitle } from '../lib/cut';
 import type { AnalysisSettings } from './useAnalysisSettings';
 
 export function useDatabase() {
@@ -227,6 +228,34 @@ export function useDatabase() {
     }
   }, [refreshChats, refreshTags, refreshFolders]);
 
+  const splitChat = useCallback(async (chatId: string, offset: number): Promise<Chat | null> => {
+    const all = await db.getAllChats();
+    const chat = all.find((c) => c.id === chatId);
+    if (!chat) return null;
+    const { above, below } = splitMarkdown(chat.content_md, offset);
+    const newChat = await db.insertChat({
+      title: deriveSplitTitle(below, chat.title),
+      summary: null,
+      source: chat.source,
+      content_md: below,
+      content_html: null,
+      imported_at: new Date().toISOString(),
+      chat_date: chat.chat_date,
+      folder_id: chat.folder_id,
+      deleted_at: null,
+      favorite: 0,
+    });
+    const tags = await db.getTagsForChat(chatId);
+    for (const t of tags) await db.addTagToChat(newChat.id, t.id);
+    await db.updateChat(chatId, { content_md: above });
+    await refreshChats();
+    await refreshTags();
+    await refreshFolders();
+    const updatedCurrent = (await db.getAllChats()).find((c) => c.id === chatId);
+    if (updatedCurrent) setSelectedChat(updatedCurrent);
+    return newChat;
+  }, [refreshChats, refreshTags, refreshFolders, setSelectedChat]);
+
   const updateChat = useCallback(async (id: string, updates: Partial<Chat>) => {
     await db.updateChat(id, updates);
     await refreshChats();
@@ -448,6 +477,7 @@ export function useDatabase() {
     checkDuplicate,
     updateExistingChat,
     importFile,
+    splitChat,
     updateChat,
     toggleFavorite,
     deleteChat,

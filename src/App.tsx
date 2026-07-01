@@ -56,7 +56,7 @@ export default function App() {
   const {
     chats, recentChats, tags, folders, unfiledCount, selectedChat, selectedChatTags, selectedChatAttachments,
     searchQuery, selectedTagIds, selectedSource, selectedFolderId, loading, generatingMetadata,
-    setSelectedChat, checkDuplicate, updateExistingChat, importFile, updateChat, toggleFavorite, deleteChat,
+    setSelectedChat, checkDuplicate, updateExistingChat, importFile, splitChat, updateChat, toggleFavorite, deleteChat,
     createTag, updateTag, deleteTag,
     addTagToChat, removeTagFromChat, addAttachment, removeAttachment,
     toggleTag, selectTag, clearTags, selectSource, search,
@@ -496,6 +496,11 @@ export default function App() {
                   isResizing={isResizing}
                   focusMode={focusMode}
                   onToggleFocus={() => setFocusMode(f => !f)}
+                  onSplitChat={splitChat}
+                  onOpenChat={(id) => {
+                    const c = chats.find((x) => x.id === id);
+                    if (c) setSelectedChat(c);
+                  }}
                 />
               </>
             ) : !focusMode && filteredChats.length > 0 ? (
