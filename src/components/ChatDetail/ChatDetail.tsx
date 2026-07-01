@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { rehypeSourcePositions, applyHighlight, removeHighlight, newHighlightId, stripHighlights } from "../../lib/highlight";
 import MarkdownToolbar, { type ToolMode } from "./MarkdownToolbar";
+import CutOverlay from "./CutOverlay";
 import { computeSourceRanges } from "../../lib/highlight-dom";
 import { extractHeadings } from "../../lib/parser";
 import { jsxToHtml } from "../../lib/jsx-preview";
@@ -471,6 +472,15 @@ export default function ChatDetail({
               onToggleHighlight={handleToggleHighlight}
               onToggleCut={handleToggleCut}
             />
+            {tool === "cut" && (
+              <CutOverlay
+                containerRef={contentRef}
+                contentMd={chat.content_md}
+                onDeleteAbove={(offset) => console.warn("deleteAbove", offset)}
+                onDeleteBelow={(offset) => console.warn("deleteBelow", offset)}
+                onSplit={(offset) => console.warn("split", offset)}
+              />
+            )}
             <MemoizedMarkdown content={chat.content_md} contentRef={contentRef} onMarkClick={handleMarkRemove} />
           </div>
         </div>
@@ -756,6 +766,15 @@ export default function ChatDetail({
               onToggleHighlight={handleToggleHighlight}
               onToggleCut={handleToggleCut}
             />
+            {tool === "cut" && (
+              <CutOverlay
+                containerRef={contentRef}
+                contentMd={chat.content_md}
+                onDeleteAbove={(offset) => console.warn("deleteAbove", offset)}
+                onDeleteBelow={(offset) => console.warn("deleteBelow", offset)}
+                onSplit={(offset) => console.warn("split", offset)}
+              />
+            )}
             {isResizing || tocResizing ? (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8, color: "var(--text-faint)" }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

@@ -2048,3 +2048,43 @@ mark.search-highlight.active {
   border-color: var(--text-faint);
   color: var(--text-primary);
 }
+
+/* Cut tool: the content container anchors the absolutely-positioned guide line */
+.md-content.cut-armed {
+  position: relative;
+  user-select: none;
+}
+.cut-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px dashed var(--red);
+  pointer-events: none;
+  z-index: 6;
+}
+.cut-menu {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.cut-menu button {
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.cut-menu button:hover {
+  background: var(--bg-hover);
+}
