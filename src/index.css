@@ -1695,6 +1695,10 @@ mark.search-highlight.active {
 .md-content.hl-armed * {
   cursor: text;
 }
+.md-content.cut-armed,
+.md-content.cut-armed * {
+  cursor: crosshair;
+}
 
 /* ---- SETTINGS MODAL ---- */
 .settings-panel {
