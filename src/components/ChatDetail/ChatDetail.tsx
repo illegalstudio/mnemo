@@ -7,6 +7,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import { rehypeSourcePositions, applyHighlight, removeHighlight, newHighlightId, stripHighlights } from "../../lib/highlight";
+import { deleteAbove, deleteBelow } from "../../lib/cut";
 import MarkdownToolbar, { type ToolMode } from "./MarkdownToolbar";
 import CutOverlay from "./CutOverlay";
 import { computeSourceRanges } from "../../lib/highlight-dom";
@@ -176,7 +177,7 @@ const sourceLabels: Record<string, string> = { claude: "Claude", perplexity: "Pe
 
 export default function ChatDetail({
   chat, tags, allTags, attachments, onUpdateChat, onClose,
-  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, onRegenerateField, onReparseHtml, isResizing, focusMode, onToggleFocus, onSplitChat: _onSplitChat, onOpenChat: _onOpenChat,
+  onAddTag, onRemoveTag, onCreateTag, onAddAttachment, onRemoveAttachment, onRegenerateField, onReparseHtml, isResizing, focusMode, onToggleFocus, onSplitChat, onOpenChat,
 }: ChatDetailProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(chat.title);
@@ -201,6 +202,11 @@ export default function ChatDetail({
   const tocDragging = useRef(false);
   const [tool, setTool] = useState<ToolMode>("none");
   const [hlNotice, setHlNotice] = useState<string | null>(null);
+  const [cutConfirm, setCutConfirm] = useState<{ direction: "above" | "below"; offset: number } | null>(null);
+  const [cutUndo, setCutUndo] = useState<string | null>(null); // previous content_md
+  const [splitToast, setSplitToast] = useState<string | null>(null); // new chat id
+  const cutUndoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const splitToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setEditingTitle(false);
@@ -213,6 +219,11 @@ export default function ChatDetail({
     setTool("none");
     setHlNotice(null);
     if (hlNoticeTimer.current) { clearTimeout(hlNoticeTimer.current); hlNoticeTimer.current = null; }
+    setCutConfirm(null);
+    setCutUndo(null);
+    setSplitToast(null);
+    if (cutUndoTimer.current) { clearTimeout(cutUndoTimer.current); cutUndoTimer.current = null; }
+    if (splitToastTimer.current) { clearTimeout(splitToastTimer.current); splitToastTimer.current = null; }
   }, [chat.id]);
 
   // Sync local state when chat data changes externally (e.g. after analysis)
@@ -328,6 +339,31 @@ export default function ChatDetail({
   const handleToggleCut = useCallback(() => {
     setTool((t) => (t === "cut" ? "none" : "cut"));
   }, []);
+
+  const performDelete = useCallback((direction: "above" | "below", offset: number) => {
+    const prev = chat.content_md;
+    const next = direction === "above" ? deleteAbove(prev, offset) : deleteBelow(prev, offset);
+    onUpdateChat(chat.id, { content_md: next });
+    setCutUndo(prev);
+    if (cutUndoTimer.current) clearTimeout(cutUndoTimer.current);
+    cutUndoTimer.current = setTimeout(() => setCutUndo(null), 6000);
+  }, [chat.id, chat.content_md, onUpdateChat]);
+
+  const handleCutUndo = useCallback(() => {
+    if (cutUndo == null) return;
+    onUpdateChat(chat.id, { content_md: cutUndo });
+    setCutUndo(null);
+    if (cutUndoTimer.current) { clearTimeout(cutUndoTimer.current); cutUndoTimer.current = null; }
+  }, [cutUndo, chat.id, onUpdateChat]);
+
+  const handleSplit = useCallback(async (offset: number) => {
+    const newChat = await onSplitChat(chat.id, offset);
+    if (newChat) {
+      setSplitToast(newChat.id);
+      if (splitToastTimer.current) clearTimeout(splitToastTimer.current);
+      splitToastTimer.current = setTimeout(() => setSplitToast(null), 8000);
+    }
+  }, [chat.id, onSplitChat]);
 
   // Clicking an existing highlight erases it.
   const handleMarkRemove = useCallback((id: string) => {
@@ -456,6 +492,36 @@ export default function ChatDetail({
 
   const importDate = new Date(chat.imported_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
+  const cutModals = (
+    <>
+      {cutConfirm && (
+        <div className="expand-modal-overlay" onClick={() => setCutConfirm(null)}>
+          <div className="cut-confirm" onClick={(e) => e.stopPropagation()}>
+            <div className="cut-confirm-text">
+              Delete the part {cutConfirm.direction} this line?
+            </div>
+            <div className="cut-confirm-actions">
+              <button className="cut-confirm-cancel" onClick={() => setCutConfirm(null)}>Cancel</button>
+              <button className="cut-confirm-delete" onClick={() => { performDelete(cutConfirm.direction, cutConfirm.offset); setCutConfirm(null); }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {cutUndo != null && (
+        <div className="cut-toast">
+          <span>Content deleted</span>
+          <button onClick={handleCutUndo}>Undo</button>
+        </div>
+      )}
+      {splitToast && (
+        <div className="cut-toast">
+          <span>Note split</span>
+          <button onClick={() => { onOpenChat(splitToast); setSplitToast(null); }}>Open new note</button>
+        </div>
+      )}
+    </>
+  );
+
   if (focusMode) {
     return (
       <div className="focus-mode">
@@ -476,14 +542,15 @@ export default function ChatDetail({
               <CutOverlay
                 containerRef={contentRef}
                 contentMd={chat.content_md}
-                onDeleteAbove={(offset) => console.warn("deleteAbove", offset)}
-                onDeleteBelow={(offset) => console.warn("deleteBelow", offset)}
-                onSplit={(offset) => console.warn("split", offset)}
+                onDeleteAbove={(offset) => setCutConfirm({ direction: "above", offset })}
+                onDeleteBelow={(offset) => setCutConfirm({ direction: "below", offset })}
+                onSplit={(offset) => handleSplit(offset)}
               />
             )}
             <MemoizedMarkdown content={chat.content_md} contentRef={contentRef} onMarkClick={handleMarkRemove} />
           </div>
         </div>
+        {cutModals}
       </div>
     );
   }
@@ -770,9 +837,9 @@ export default function ChatDetail({
               <CutOverlay
                 containerRef={contentRef}
                 contentMd={chat.content_md}
-                onDeleteAbove={(offset) => console.warn("deleteAbove", offset)}
-                onDeleteBelow={(offset) => console.warn("deleteBelow", offset)}
-                onSplit={(offset) => console.warn("split", offset)}
+                onDeleteAbove={(offset) => setCutConfirm({ direction: "above", offset })}
+                onDeleteBelow={(offset) => setCutConfirm({ direction: "below", offset })}
+                onSplit={(offset) => handleSplit(offset)}
               />
             )}
             {isResizing || tocResizing ? (
@@ -828,6 +895,7 @@ export default function ChatDetail({
           </div>
         </div>
       )}
+      {cutModals}
     </div>
   );
 }
